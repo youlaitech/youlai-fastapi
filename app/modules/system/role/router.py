@@ -1,0 +1,79 @@
+"""角色管理路由。"""
+
+from fastapi import APIRouter, Body, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.framework.security.deps import require_perm
+from app.framework.web.response import Result
+from app.modules.system.role.schemas import (
+    RoleCreate, RoleQuery, RoleUpdate,
+)
+from app.modules.system.role.service import RoleService
+
+router = APIRouter(prefix="/api/v1/roles", tags=["角色管理"])
+
+
+@router.get("", summary="角色分页列表", dependencies=[Depends(require_perm("sys:role:list"))])
+async def get_role_page(
+    pageNum: int = Query(default=1, ge=1), pageSize: int = Query(default=10, ge=1, le=100),
+    keywords: str | None = None, status: int | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    query = RoleQuery(pageNum=pageNum, pageSize=pageSize, keywords=keywords, status=status)
+    result = await RoleService(db).get_page(query)
+    return Result(data=result)
+
+
+@router.get("/options", summary="角色下拉选项")
+async def get_role_options(db: AsyncSession = Depends(get_db)):
+    result = await RoleService(db).get_options()
+    return Result(data=result)
+
+
+@router.get("/{role_id}/form", summary="角色表单数据", dependencies=[Depends(require_perm("sys:role:update"))])
+async def get_role_form(role_id: int, db: AsyncSession = Depends(get_db)):
+    return Result(data=await RoleService(db).get_role_form(role_id))
+
+
+@router.post("", summary="创建角色", dependencies=[Depends(require_perm("sys:role:create"))])
+async def create_role(form: RoleCreate, db: AsyncSession = Depends(get_db)):
+    vo = await RoleService(db).create(form)
+    return Result(data=vo)
+
+
+@router.put("/{role_id}", summary="更新角色", dependencies=[Depends(require_perm("sys:role:update"))])
+async def update_role(role_id: int, form: RoleUpdate, db: AsyncSession = Depends(get_db)):
+    form.id = role_id
+    vo = await RoleService(db).update(form)
+    return Result(data=vo)
+
+
+@router.delete("/{ids}", summary="删除角色", dependencies=[Depends(require_perm("sys:role:delete"))])
+async def delete_roles(ids: str, db: AsyncSession = Depends(get_db)):
+    count = await RoleService(db).delete(ids)
+    return Result(data=count, msg=f"成功删除 {count} 条记录")
+
+
+@router.patch("/{role_id}/status", summary="修改角色状态", dependencies=[Depends(require_perm("sys:role:update"))])
+async def update_role_status(role_id: int, status: int, db: AsyncSession = Depends(get_db)):
+    await RoleService(db).update_status(role_id, status)
+    return Result(data=None)
+
+
+@router.get("/{role_id}/menu-ids", summary="获取角色菜单ID列表")
+async def get_role_menu_ids(role_id: int, db: AsyncSession = Depends(get_db)):
+    ids = await RoleService(db).get_role_menu_ids(role_id)
+    return Result(data=ids)
+
+
+@router.put("/{role_id}/menus", summary="分配菜单权限", dependencies=[Depends(require_perm("sys:role:assign"))])
+async def assign_role_menus(role_id: int, menuIds: list[int] = Body(...), db: AsyncSession = Depends(get_db)):
+    await RoleService(db).assign_menus(role_id, menuIds)
+    return Result(data=None)
+
+
+@router.get("/{role_id}/dept-ids", summary="获取角色部门ID集合", dependencies=[Depends(require_perm("sys:role:update"))])
+async def get_role_dept_ids(role_id: int, db: AsyncSession = Depends(get_db)):
+    ids = await RoleService(db).get_role_dept_ids(role_id)
+    return Result(data=ids)

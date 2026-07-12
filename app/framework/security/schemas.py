@@ -1,0 +1,58 @@
+"""安全领域模型。"""
+
+from pydantic import BaseModel, Field
+
+
+class SecurityUser(BaseModel):
+    """登录时从 DB 查出的用户安全数据。"""
+    userId: int | None = Field(default=None, description="用户ID")
+    username: str | None = Field(default=None, description="用户名")
+    password: str | None = Field(default=None, description="密码")
+    nickname: str | None = Field(default=None, description="昵称")
+    deptId: int | None = Field(default=None, description="部门ID")
+    status: int = Field(default=1, description="状态 1-启用 0-禁用")
+    roles: set[str] = Field(default_factory=set, description="角色编码集合")
+    dataScopes: list[dict] = Field(default_factory=list, description="数据权限范围")
+    mobile: str | None = Field(default=None, description="手机号")
+    email: str | None = Field(default=None, description="邮箱")
+    avatar: str | None = Field(default=None, description="头像URL")
+
+
+class SysUserDetails(BaseModel):
+    """认证后的用户详情，缓存到 JWT payload 中。"""
+    userId: int | None = None
+    username: str | None = None
+    password: str | None = None
+    enabled: bool = True
+    deptId: int | None = None
+    dataScopes: list[dict] = Field(default_factory=list)
+    roles: set[str] = Field(default_factory=set)
+    isRoot: bool = False
+
+    @staticmethod
+    def from_security_user(user: SecurityUser, is_root: bool = False) -> "SysUserDetails":
+        """从 SecurityUser 构造。"""
+        return SysUserDetails(
+            userId=user.userId,
+            username=user.username,
+            password=None,  # 不存密码
+            enabled=user.status == 1,
+            deptId=user.deptId,
+            dataScopes=user.dataScopes,
+            roles=user.roles,
+            isRoot=is_root,
+        )
+
+
+class AuthenticationToken(BaseModel):
+    """认证令牌。"""
+    accessToken: str = ""
+    refreshToken: str = ""
+    tokenType: str = "Bearer"
+    expiresIn: int = 0
+
+
+class CaptchaResult(BaseModel):
+    """验证码返回。"""
+    captchaId: str = Field(description="验证码ID")
+    captchaImg: str = Field(description="base64 编码的验证码图片")

@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+.uv/
+.env
+*.egg
+!.env.example
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Alembic
+app/alembic/versions/*.pyc
