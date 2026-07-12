@@ -31,10 +31,10 @@
 ## Core Features
 
 - 🔐 **Security** — PyJWT + bcrypt + Redis Token, with token issuance, renewal, and multi-device sessions
-- 🛡️ **Fine-grained permissions** — RBAC at data / menu / button / API level; data scope is enforced in the service layer by appending WHERE conditions based on the role's `data_scope`
-- ⚡ **Code generator** — one-click generation of full-stack CRUD code (codegen module)
+- 🛡️ **Fine-grained permissions** — RBAC at data / menu / button / API level, with five data-scope tiers
+- ⚡ **Code generator** — one-click generation of full-stack CRUD code
 - 📦 **Complete modules** — users, roles, menus, departments, dictionaries, configs, files, notices, operation logs
-- 🌐 **Multi-language ecosystem** — shares the API specification and database schema with other language versions
+- 🌐 **Multi-language ecosystem** — shares the API spec and database schema with other language versions
 - 🔌 **Real-time communication** — SSE push: online user count, dictionary sync, notification broadcast
 
 ## System Preview
