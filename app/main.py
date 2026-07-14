@@ -7,20 +7,23 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi_pagination import add_pagination
 from loguru import logger
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from fastapi.responses import JSONResponse
 
-from app.core.config import settings
-from app.core.redis import close_redis
-from app.framework.middleware import setup_cors, RequestLogMiddleware
-from app.framework.middleware.rate_limit import limiter
-from app.framework.web.exception import (
+from app.config import settings
+from app.redis import close_redis
+from app.middleware import setup_cors, RequestLogMiddleware
+from app.middleware import limiter
+from app.exceptions import (
     BusinessException,
     business_exception_handler,
     global_exception_handler,
     validation_exception_handler,
 )
-from app.framework.web.response import Result, ResultCode
+from app.response import Result, ResultCode
+
+import app.registry  # noqa: F401  注册全部域模型，供 mapper 配置时解析跨域 relationship
 
 
 @asynccontextmanager
@@ -49,8 +52,18 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestLogMiddleware)
 
     # ── 限流 (slowapi) ──
+    # SlowAPIMiddleware 让 default_limits 对所有路由生效；headers_enabled 已在 Limiter 上开启
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+    app.add_exception_handler(
+        RateLimitExceeded,
+        lambda request, exc: JSONResponse(
+            status_code=429,
+            content=Result(
+                code=ResultCode.RATE_LIMIT_EXCEEDED, msg="请求过于频繁，请稍后再试"
+            ).model_dump(),
+        ),
+    )
 
     # ── 异常处理 ──
     app.add_exception_handler(BusinessException, business_exception_handler)
@@ -66,18 +79,18 @@ def create_app() -> FastAPI:
         return {"status": "ok", "service": "youlai-fastapi"}
 
     # ── 注册路由 ──
-    from app.modules.auth.router import router as auth_router
-    from app.modules.system.user.router import router as user_router
-    from app.modules.system.role.router import router as role_router
-    from app.modules.system.menu.router import router as menu_router
-    from app.modules.system.dept.router import router as dept_router
-    from app.modules.system.dict.router import router as dict_router
-    from app.modules.system.config.router import router as config_router
-    from app.modules.system.notice.router import router as notice_router
-    from app.modules.system.log.router import router as log_router
-    from app.modules.file.router import router as file_router
-    from app.modules.codegen.router import router as codegen_router
-    from app.modules.wxma.router import router as wxma_router
+    from app.auth.router import router as auth_router
+    from app.system.user.router import router as user_router
+    from app.system.role.router import router as role_router
+    from app.system.menu.router import router as menu_router
+    from app.system.dept.router import router as dept_router
+    from app.system.dict.router import router as dict_router
+    from app.system.config.router import router as config_router
+    from app.system.notice.router import router as notice_router
+    from app.system.log.router import router as log_router
+    from app.tool.file.router import router as file_router
+    from app.tool.codegen.router import router as codegen_router
+    from app.tool.wxma.router import router as wxma_router
 
     app.include_router(auth_router)
     app.include_router(user_router)
@@ -93,7 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(wxma_router)
 
     # ── SSE 端点 ──
-    from app.framework.sse.router import router as sse_router
+    from app.tool.sse.router import router as sse_router
     app.include_router(sse_router)
 
     logger.info("All routers registered")

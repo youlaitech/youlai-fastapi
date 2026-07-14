@@ -106,7 +106,7 @@ addopts = "-v --cov=app --cov-report=term-missing --cov-report=html"
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["app/alembic/*", "tests/*"]
+omit = ["alembic/*", "tests/*"]
 
 [tool.mypy]
 python_version = "3.11"

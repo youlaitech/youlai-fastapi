@@ -89,7 +89,7 @@
 
 Default credentials: `admin` / `123456`
 
-**Docker**: `docker-compose -f docker/docker-compose.yml up -d`
+**Docker**: `docker compose up -d`
 
 ## Tech Stack
 
@@ -109,26 +109,35 @@ Default credentials: `admin` / `123456`
 
 ## Directory Structure
 
+> Follows [zhanymkanov/fastapi-best-practices](https://github.com/zhanymkanov/fastapi-best-practices): organized by business domain, each module self-contains `router/schemas/models/service`.
+
 ```
 youlai-fastapi/
 ├── app/
 │   ├── main.py              # FastAPI entry
-│   ├── core/                # config, db, Redis, security
-│   ├── common/              # constants, enums, pagination
-│   ├── models/              # SQLAlchemy ORM models
-│   ├── framework/           # framework layer
-│   │   ├── security/        # JWT / data scope / captcha
-│   │   ├── web/             # unified response / exception / rate limit
-│   │   ├── middleware/      # CORS / logging / rate limit
-│   │   └── sse/             # SSE push
-│   └── modules/             # business modules
-│       ├── auth/            # auth (login/logout/refresh/captcha)
-│       ├── system/          # user/role/menu/dept/dict/config/notice/log
-│       ├── file/            # file service (MinIO/local)
-│       └── codegen/         # code generator
-├── sql/postgresql/          # database init scripts
-├── docker/                  # Docker deployment
+│   ├── config.py            # Pydantic Settings
+│   ├── database.py          # async engine + session
+│   ├── redis.py             # Redis connection pool
+│   ├── response.py          # Result + ResultCode unified response
+│   ├── exceptions.py        # BusinessException + global handlers
+│   ├── pagination.py        # PageQuery / PageResult
+│   ├── constants.py         # global constants
+│   ├── dependencies.py      # get_current_user / require_perm
+│   ├── middleware.py        # CORS / logging / rate limit
+│   ├── models/              # ORM base + domain model registry
+│   ├── auth/                # auth (login/logout/refresh/captcha)
+│   ├── user/  role/  menu/  dept/  dict/  sysconfig/  notice/  log/
+│   ├── captcha/             # image captcha
+│   ├── file/                # file service (MinIO/local)
+│   ├── codegen/             # code generator
+│   ├── wxma/                # WeChat Mini Program
+│   └── sse/                 # SSE push
 ├── alembic/                 # database migration
+├── tests/                   # tests
+├── sql/postgresql/          # database init scripts
+├── docs/images/             # README image assets
+├── Dockerfile               # container build
+├── docker-compose.yml       # container orchestration
 ├── pyproject.toml           # dependency management
 └── README.md
 ```

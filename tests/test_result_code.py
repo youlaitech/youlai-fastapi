@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.framework.web.response import ResultCode
-from app.framework.web.exception import BusinessException
+from app.response import ResultCode
+from app.exceptions import BusinessException
 
 
 @pytest.mark.parametrize(
