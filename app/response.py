@@ -25,6 +25,7 @@ _HTTP_STATUS_MAP: dict[str, int] = {
     "00000": 200,
     # Auth
     "A0230": 401, "A0231": 401, "A0250": 401,
+    "A0251": 400, "A0252": 400, "A0253": 400,
     "A0301": 403,
     "A0400": 422,
     "A0401": 404, "A0402": 401, "A0403": 403, "A0404": 400,
@@ -41,7 +42,10 @@ class ResultCode(str, Enum):
     # ── Token / 认证 ──
     TOKEN_INVALID = "A0230"       # → HTTP 401 访问令牌无效或过期
     TOKEN_REFRESH_FAIL = "A0231"  # → HTTP 401 刷新令牌无效或过期
-    TOKEN_CHOOSE_TENANT = "A0250" # → HTTP 401 需要选择租户
+    QR_CODE_NOT_FOUND = "A0250"    # → HTTP 401 扫码登录票据不存在或已过期
+    QR_CODE_STATUS_ILLEGAL = "A0251"  # → HTTP 400 扫码登录状态非法
+    QR_CODE_USER_MISMATCH = "A0252"   # → HTTP 400 扫码用户与确认用户不一致
+    QR_CODE_ALREADY_USED = "A0253"    # → HTTP 400 扫码登录票据已使用
     ACCESS_DENIED = "A0301"       # → HTTP 403 权限不足
     USER_DISABLED = "A0403"       # → HTTP 403 用户被禁用
 

@@ -7,22 +7,15 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi_pagination import add_pagination
 from loguru import logger
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
-from fastapi.responses import JSONResponse
-
 from app.config import settings
 from app.redis import close_redis
-from app.middleware import setup_cors, RequestLogMiddleware
-from app.middleware import limiter
+from app.middleware import setup_cors, RequestLogMiddleware, IpRateLimitMiddleware
 from app.exceptions import (
     BusinessException,
     business_exception_handler,
     global_exception_handler,
     validation_exception_handler,
 )
-from app.response import Result, ResultCode
-
 import app.registry  # noqa: F401  注册全部域模型，供 mapper 配置时解析跨域 relationship
 
 
@@ -51,19 +44,8 @@ def create_app() -> FastAPI:
     setup_cors(app)
     app.add_middleware(RequestLogMiddleware)
 
-    # ── 限流 (slowapi) ──
-    # SlowAPIMiddleware 让 default_limits 对所有路由生效；headers_enabled 已在 Limiter 上开启
-    app.state.limiter = limiter
-    app.add_middleware(SlowAPIMiddleware)
-    app.add_exception_handler(
-        RateLimitExceeded,
-        lambda request, exc: JSONResponse(
-            status_code=429,
-            content=Result(
-                code=ResultCode.RATE_LIMIT_EXCEEDED, msg="请求过于频繁，请稍后再试"
-            ).model_dump(),
-        ),
-    )
+    # ── 限流（IP 滑动窗口 ZSet Lua）──
+    app.add_middleware(IpRateLimitMiddleware)
 
     # ── 异常处理 ──
     app.add_exception_handler(BusinessException, business_exception_handler)
@@ -80,12 +62,12 @@ def create_app() -> FastAPI:
 
     # ── 注册路由 ──
     from app.auth.router import router as auth_router
+    from app.auth.qr_code import router as qr_code_router
     from app.system.user.router import router as user_router
     from app.system.role.router import router as role_router
     from app.system.menu.router import router as menu_router
     from app.system.dept.router import router as dept_router
     from app.system.dict.router import router as dict_router
-    from app.system.config.router import router as config_router
     from app.system.notice.router import router as notice_router
     from app.system.log.router import router as log_router
     from app.tool.file.router import router as file_router
@@ -93,6 +75,7 @@ def create_app() -> FastAPI:
     from app.tool.wxma.router import router as wxma_router
 
     app.include_router(auth_router)
+    app.include_router(qr_code_router)
     app.include_router(user_router)
     app.include_router(role_router)
     app.include_router(menu_router)

@@ -19,6 +19,10 @@ REDIS_CONFIG_CACHE = "config:cache:"
 REDIS_USER_CACHE = "user:cache:"
 REDIS_RATE_LIMIT_PREFIX = "rate_limit:"
 
+# 扫码登录票据 Key 前缀（完整 Key 为 auth:qr_code:{ticket}）与有效期（秒）
+QR_CODE_PREFIX = "auth:qr_code:"
+QR_CODE_TTL = 300
+
 # ── 系统级全局 ──
 SUPER_ADMIN_ID = 1   # 内置超管账号 id
 ROOT_DEPT_ID = 1     # 根部门 id

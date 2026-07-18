@@ -110,6 +110,22 @@ class AuthService:
             "deptId": user.dept_id,
         }
 
+    async def get_auth_info_by_user_id(self, user_id: int) -> dict:
+        """按用户 ID 取认证信息（含 username/nickname/avatar/roles/perms），供扫码登录展示。"""
+        return await self.get_user_info(user_id)
+
+    async def login_by_qr(self, user_id: int) -> dict:
+        """扫码登录换发会话令牌：按 ID 查用户并复用既有签发逻辑。"""
+        result = await self.db.execute(
+            select(SysUser).where(SysUser.id == user_id, SysUser.is_deleted == 0)
+        )
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise BusinessException(code=ResultCode.USERNAME_NOT_FOUND, msg="用户不存在")
+        if user.status != 1:
+            raise BusinessException(code=ResultCode.USER_DISABLED, msg="用户已被禁用")
+        return await self._build_token(user)
+
     async def _build_token(self, user: SysUser) -> dict:
         """查用户角色及 data_scope，构造 token 并签发。"""
         role_result = await self.db.execute(
