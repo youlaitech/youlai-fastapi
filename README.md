@@ -114,12 +114,13 @@
 
 ```
 youlai-fastapi/
+├── .env             # 数据库 / Redis 连接等运行配置
 ├── app/             # 应用主目录
 │   ├── main.py      # FastAPI 入口
-│   ├── config.py    # Pydantic Settings 配置
+│   ├── config.py    # Pydantic Settings 配置（默认值来源）
 │   ├── auth/        # 认证（登录/登出/刷新/验证码/扫码登录）
-│   ├── system/      # 系统管理（user/role/menu/dept/dict/config/notice/log）
-│   └── tool/        # 工具（file/codegen/wxma/sse）
+│   ├── system/      # 系统管理（用户 / 角色 / 部门 / 菜单 等）
+│   └── tool/        # 工具（文件上传 / 代码生成 等）
 ├── alembic/         # 数据库迁移
 ├── tests/           # 测试
 ├── sql/             # 数据库初始化脚本（PostgreSQL）

@@ -1,19 +1,19 @@
 [project]
 name = "youlai-fastapi"
 version = "1.1.0"
-description = "youlai-admin FastAPI 后端 — 基于 youlai-boot 功能镜像构建"
+description = "vue3-element-admin 的 FastAPI 后端，基于 FastAPI + SQLAlchemy + MySQL/Redis 构建"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 authors = [
-    { name = "youlai", email = "youlai@example.com" }
+    { name = "youlai", email = "youlaitech@163.com" }
 ]
 keywords = ["fastapi", "admin", "youlai", "backend"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: FastAPI",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
