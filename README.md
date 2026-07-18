@@ -27,9 +27,9 @@
 
 </div>
 
-## 简介
+## 项目简介
 
-**youlai-fastapi** 是一套基于 Python（FastAPI + SQLAlchemy 2.0 + PostgreSQL）的企业级权限管理系统后端，配套前端 [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin) 和移动端 [youlai-app](https://gitee.com/youlaiorg/youlai-app)，并提供 **7 种语言实现**（Java / Node.js / Go / Python / PHP / C# / Rust），共享同一套 API 规范与数据库结构。适用于 Python 技术栈团队的企业中后台学习与二次开发。
+**youlai-fastapi** 是一套基于 Python（FastAPI + SQLAlchemy 2.0 + PostgreSQL）的企业级权限管理系统后端，配套前端 [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin) 和移动端 [youlai-app](https://gitee.com/youlaiorg/youlai-app)，并提供 **7 种语言实现**（Java / Node.js / Go / Python / PHP / C# / Rust），共享同一套 API 规范与数据库结构。适用于 Python 技术栈团队的企业中后台学习与二次开发。完整接口文档见 [Apifox](https://www.apifox.cn/apidoc/shared-195e783f-4d85-4235-a038-eec696de4ea5)。
 
 ## 核心特性
 
@@ -108,53 +108,22 @@
 - 账号：`admin`
 - 密码：`123456`
 
-## 技术栈
-
-| 技术 | 版本 | 说明 |
-|:-----|:-----|:-----|
-| FastAPI | 0.115+ | Web 框架 |
-| Uvicorn | 0.30+ | ASGI 服务器 |
-| SQLAlchemy | 2.0 async | ORM（asyncpg 驱动） |
-| Pydantic | v2 | 数据校验 |
-| PostgreSQL | 16+ | 主数据库 |
-| Redis | 7.x | 缓存 / 会话 |
-| PyJWT | — | 认证令牌 |
-| bcrypt | — | 密码加密 |
-| loguru | — | 日志 |
-| MinIO | — | 对象存储 |
-| slowapi | — | 接口限流 |
-
 ## 目录结构
 
-> 参考 [zhanymkanov/fastapi-best-practices](https://github.com/zhanymkanov/fastapi-best-practices)：按业务域组织，每个域自包含 `router/schemas/models/service`。
+> 按业务域组织，每个域自包含 `router/schemas/models/service`，参考 [zhanymkanov/fastapi-best-practices](https://github.com/zhanymkanov/fastapi-best-practices)。
 
 ```
 youlai-fastapi/
-├── app/
-│   ├── main.py              # FastAPI 入口
-│   ├── config.py            # Pydantic Settings 配置
-│   ├── database.py          # 异步引擎 + session
-│   ├── redis.py             # Redis 连接池
-│   ├── response.py          # Result + ResultCode 统一响应
-│   ├── exceptions.py        # BusinessException + 全局异常处理器
-│   ├── pagination.py        # PageQuery / PageResult
-│   ├── constants.py         # 全局常量
-│   ├── dependencies.py      # get_current_user / require_perm
-│   ├── middleware.py        # CORS / 日志 / IP 限流
-│   ├── serializers.py       # BigId 等 id 序列化类型
-│   ├── registry.py          # 全域 ORM 模型注册
-│   ├── auth/                # 认证（登录/登出/刷新/验证码/扫码登录）
-│   ├── captcha/             # 图形验证码
-│   ├── system/              # 系统管理域：user / role / menu / dept / dict / config / notice / log
-│   └── tool/                # 工具域：file / codegen / wxma / sse
-├── alembic/                 # 数据库迁移
-├── tests/                   # 测试
-├── sql/                     # 数据库初始化脚本（PostgreSQL）
-├── docs/images/             # README 图片资源
-├── Dockerfile               # 容器构建
-├── docker-compose.yml       # 容器编排
-├── pyproject.toml           # 依赖管理
-└── README.md
+├── app/             # 应用主目录
+│   ├── main.py      # FastAPI 入口
+│   ├── config.py    # Pydantic Settings 配置
+│   ├── auth/        # 认证（登录/登出/刷新/验证码/扫码登录）
+│   ├── system/      # 系统管理（user/role/menu/dept/dict/config/notice/log）
+│   └── tool/        # 工具（file/codegen/wxma/sse）
+├── alembic/         # 数据库迁移
+├── tests/           # 测试
+├── sql/             # 数据库初始化脚本（PostgreSQL）
+└── pyproject.toml   # 依赖管理
 ```
 
 ## 生态矩阵
@@ -182,16 +151,7 @@ youlai-fastapi/
 >
 > 七种后端共享同一套 **RESTful API 规范** 和 **数据库结构**，前端可无缝切换。
 
-## 文档资源
-
-| 资源 | 地址 |
-|:-----|:-----|
-| 完整文档站 | https://www.youlai.tech |
-| Apifox 接口文档 | https://www.apifox.cn/apidoc/shared-195e783f-4d85-4235-a038-eec696de4ea5 |
-| PC 端在线预览 | https://vue.youlai.tech |
-| 移动端在线预览 | https://app.youlai.tech |
-
-## 贡献与协议
+## 交流合作
 
 欢迎在 [Issue](https://gitee.com/youlaiorg/youlai-fastapi/issues) 提交问题或反馈，也欢迎提交 Pull Request，支持与合作见[支持指南](https://www.youlai.tech/docs/support/)。本项目基于 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) 开源，可免费用于商业项目。如需商务合作、二次开发、项目定制或部署支持，可联系作者微信（见下方二维码）。
 
