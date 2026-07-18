@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     ALLOW_MULTI_LOGIN: bool = True
 
     # ── MinIO ──
-    MINIO_ENDPOINT: str = "localhost:9000"
-    MINIO_ACCESS_KEY: str = "minioadmin"
-    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_ENDPOINT: str = "111.229.83.153:9000"
+    MINIO_ACCESS_KEY: str = "bybaddp7zyARpgNbEGKf"
+    MINIO_SECRET_KEY: str = "p9rBdQZPBIJcMH23iyFkZkXmmawbmwPlk3JLlaaj"
     MINIO_BUCKET: str = "public"
     MINIO_SECURE: bool = False
 
@@ -43,18 +43,16 @@ class Settings(BaseSettings):
     MAIL_SSL_TLS: bool = False
 
     # ── 限流 ──
-    # IP 全局限流总开关。开发/测试默认关闭，避免误触 429 影响体验；生产按需开启。
-    RATE_LIMIT_ENABLED: bool = False
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_IP_LIMIT: int = 1000     # IP 窗口内最大请求数
+    RATE_LIMIT_IP_WINDOW: int = 60      # IP 滑动窗口大小（秒）
 
     # ── CORS ──
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
-    # ── 多租户 ──
-    TENANT_ENABLE: bool = False
-
     # ── 文件上传 ──
     FILE_MAX_SIZE_MB: int = 50
-    FILE_ALLOWED_TYPES: str = "jpg,jpeg,png,gif,pdf,xlsx,xls,docx,doc,zip"
+    FILE_ALLOWED_TYPES: str = "jpg,jpeg,png,gif"
 
     # ── 调试 ──
     DEBUG: bool = False

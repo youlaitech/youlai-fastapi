@@ -68,6 +68,7 @@ def create_app() -> FastAPI:
     from app.system.menu.router import router as menu_router
     from app.system.dept.router import router as dept_router
     from app.system.dict.router import router as dict_router
+    from app.system.config.router import router as config_router
     from app.system.notice.router import router as notice_router
     from app.system.log.router import router as log_router
     from app.tool.file.router import router as file_router

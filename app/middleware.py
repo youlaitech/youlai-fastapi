@@ -4,15 +4,29 @@ import time
 
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from loguru import logger
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
+from app.rate_limit import check_rate_limit
+from app.exceptions import BusinessException
 
 
 def setup_cors(app):
+    # ALLOWED_ORIGINS 为 * 时放行所有来源（带凭据时浏览器不允许 *，故关闭 credentials）
+    if settings.ALLOWED_ORIGINS.strip() == "*":
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+            allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+            expose_headers=["Content-Disposition"],
+            max_age=600,
+        )
+        return
+
     app.add_middleware(
         CORSMiddleware,
         allow_origin_regex=r"https?://.*" if settings.DEBUG else settings.ALLOWED_ORIGINS or "http://localhost",
@@ -33,17 +47,37 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
         return response
 
 
-limiter = Limiter(
-    # 按客户端 IP 区分限流主体
-    key_func=get_remote_address,
-    # 总开关：默认关。关闭时 SlowAPIMiddleware 直接透传，不计数也不回写头。
-    enabled=settings.RATE_LIMIT_ENABLED,
-    # 全局兜底限流：单 IP 每分钟最多 1000 请求。
-    # 阈值宽松，正常调用不会误触 429；仅在恶意刷接口时生效。
-    default_limits=["1000/minute"],
-    storage_uri=settings.REDIS_URL,
-    # 滑动窗口：在滚动时间窗内计数，比固定窗口更平滑，不会在窗口边界出现双倍放行
-    strategy="moving-window",
-    # 在响应头回写 X-RateLimit-Limit / X-RateLimit-Remaining / X-RateLimit-Reset
-    headers_enabled=True,
-)
+class IpRateLimitMiddleware(BaseHTTPMiddleware):
+    """IP 全局滑动窗口限流（ZSet Lua 原子计数），Redis 异常时放行。"""
+
+    async def dispatch(self, request: Request, call_next):
+        if not settings.RATE_LIMIT_ENABLED:
+            return await call_next(request)
+
+        client_ip = (
+            request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or request.headers.get("x-real-ip", "").strip()
+            or (request.client.host if request.client else "unknown")
+        )
+        key = f"rate_limit:ip:{client_ip}"
+        limit = settings.RATE_LIMIT_IP_LIMIT
+        window = settings.RATE_LIMIT_IP_WINDOW
+        try:
+            count = await check_rate_limit(key, limit, window)
+        except BusinessException as e:
+            response = JSONResponse(
+                status_code=e.http_status,
+                content={"code": e.code, "msg": e.msg, "data": None},
+            )
+            response.headers["X-RateLimit-Limit"] = str(limit)
+            response.headers["X-RateLimit-Remaining"] = "0"
+            response.headers["X-RateLimit-Reset"] = str(int(time.time()) + window)
+            response.headers["Retry-After"] = str(window)
+            return response
+
+        response = await call_next(request)
+        remaining = max(0, limit - (count or 0))
+        response.headers["X-RateLimit-Limit"] = str(limit)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Reset"] = str(int(time.time()) + window)
+        return response

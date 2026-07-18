@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.serializers import BigId
 from loguru import logger
 
 from app.pagination import PageResult
@@ -31,7 +33,7 @@ class ConfigForm(BaseModel):
 
 
 class ConfigVO(BaseModel):
-    id: int | None = None
+    id: BigId | None = None
     configName: str = ""
     configKey: str = ""
     configValue: str = ""

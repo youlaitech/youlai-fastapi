@@ -1,8 +1,8 @@
 <div align="center">
 
-# <img alt="youlai-fastapi" width="28" src="./docs/images/logo/logo.png" align="center"> youlai-fastapi
+# <img alt="youlai-fastapi" width="28" src="./docs/images/logo/logo.png" valign="middle"> youlai-fastapi
 
-[English](./README.en.md) · [简体中文](./README.md)
+
 
 **FastAPI 企业级权限管理系统后端（Python）**
 
@@ -20,7 +20,10 @@
 
 <div align="center">
 
-[🖥️ 在线预览](https://vue.youlai.tech) | [📲 移动端预览](https://app.youlai.tech) | [📖 文档](https://www.youlai.tech/docs/server/spring-boot/)
+[![在线预览](https://img.shields.io/badge/在线预览-2D8CF0?style=for-the-badge&logo=google-chrome&logoColor=white)](https://vue.youlai.tech)
+[![移动端预览](https://img.shields.io/badge/移动端预览-19BE6B?style=for-the-badge&logo=android&logoColor=white)](https://app.youlai.tech)
+[![阅读文档](https://img.shields.io/badge/阅读文档-8B5CF6?style=for-the-badge&logo=gitbook&logoColor=white)](https://www.youlai.tech/docs/server/spring-boot/)
+[![English](https://img.shields.io/badge/English-00B4D8?style=for-the-badge&logo=google-translate&logoColor=white)](./README.en.md)
 
 </div>
 
@@ -71,25 +74,39 @@
 
 **环境要求**：Python 3.11+ · PostgreSQL 16+ · Redis 7.x
 
-1. 克隆项目：`git clone https://github.com/youlaitech/youlai-fastapi.git`
-2. 创建虚拟环境并安装依赖：
+1. 克隆项目：
+   ```bash
+   git clone https://github.com/youlaitech/youlai-fastapi.git
+   ```
+
+2. 创建虚拟环境并安装依赖（依赖清单见 `pyproject.toml`）：
    ```bash
    python -m venv .venv
-   .venv\Scripts\activate   # Windows
-   # source .venv/bin/activate  # Linux/Mac
-   pip install fastapi[standard] uvicorn[standard] sqlalchemy[asyncio] asyncpg pydantic[email] pydantic-settings pyjwt[crypto] bcrypt python-multipart redis[hiredis] orjson loguru fastapi-pagination sse-starlette pillow openpyxl minio slowapi
+   .venv\Scripts\activate      # Windows
+   # source .venv/bin/activate # Linux/Mac
+   pip install -e .
    ```
-3. 配置环境变量：`cp .env.example .env`（按需修改 `.env` 中的数据库连接）
-4. 创建并初始化数据库：
+   > pytest / ruff 等开发工具单独装：`pip install -e ".[dev]"`
+
+3. 创建并初始化数据库：
    ```bash
    createdb youlai_admin
    psql -d youlai_admin -f sql/postgresql/youlai-admin.sql
    ```
-5. 启动服务：`fastapi dev app/main.py --host 0.0.0.0 --port 8000`，访问 http://localhost:8000/docs
 
-默认账号：`admin` / `123456`
+4. 启动服务：
+   ```bash
+   fastapi dev app/main.py
+   ```
+   启动后访问 http://localhost:8000/docs，能打开接口文档即说明后端已正常运行。
 
-**Docker 部署**：`docker compose up -d`
+
+## 前端对接
+
+启动配套前端 [vue3-element-admin](https://gitee.com/youlaiorg/vue3-element-admin)，访问 http://localhost:3000 即可登录：
+
+- 账号：`admin`
+- 密码：`123456`
 
 ## 技术栈
 
@@ -115,7 +132,7 @@
 youlai-fastapi/
 ├── app/
 │   ├── main.py              # FastAPI 入口
-│   ├── config.py            # Pydantic Settings
+│   ├── config.py            # Pydantic Settings 配置
 │   ├── database.py          # 异步引擎 + session
 │   ├── redis.py             # Redis 连接池
 │   ├── response.py          # Result + ResultCode 统一响应
@@ -123,18 +140,16 @@ youlai-fastapi/
 │   ├── pagination.py        # PageQuery / PageResult
 │   ├── constants.py         # 全局常量
 │   ├── dependencies.py      # get_current_user / require_perm
-│   ├── middleware.py        # CORS / 日志 / 限流
-│   ├── models/              # ORM 基类 + 全域模型注册
-│   ├── auth/                # 认证（登录/登出/刷新/验证码）
-│   ├── user/  role/  menu/  dept/  dict/  sysconfig/  notice/  log/
+│   ├── middleware.py        # CORS / 日志 / IP 限流
+│   ├── serializers.py       # BigId 等 id 序列化类型
+│   ├── registry.py          # 全域 ORM 模型注册
+│   ├── auth/                # 认证（登录/登出/刷新/验证码/扫码登录）
 │   ├── captcha/             # 图形验证码
-│   ├── file/                # 文件服务（MinIO/本地）
-│   ├── codegen/             # 代码生成器
-│   ├── wxma/                # 微信小程序
-│   └── sse/                 # SSE 消息推送
+│   ├── system/              # 系统管理域：user / role / menu / dept / dict / config / notice / log
+│   └── tool/                # 工具域：file / codegen / wxma / sse
 ├── alembic/                 # 数据库迁移
 ├── tests/                   # 测试
-├── sql/postgresql/          # 数据库初始化脚本
+├── sql/                     # 数据库初始化脚本（PostgreSQL）
 ├── docs/images/             # README 图片资源
 ├── Dockerfile               # 容器构建
 ├── docker-compose.yml       # 容器编排
@@ -159,9 +174,9 @@ youlai-fastapi/
 | [youlai-nest](https://gitee.com/youlaiorg/youlai-nest) | NestJS + TypeORM | Node.js |
 | [youlai-gin](https://gitee.com/youlaiorg/youlai-gin) | Go + Gorm | Go |
 | [youlai-django](https://gitee.com/youlaiorg/youlai-django) | Django + DRF | Python |
-| [youlai-thinkphp](https://gitee.com/youlaiorg/youlai-thinkphp) | ThinkPHP 8 | PHP |
+| [youlai-think](https://gitee.com/youlaiorg/youlai-think) | ThinkPHP 8 | PHP |
 | [youlai-aspnet](https://gitee.com/youlaiorg/youlai-aspnet) | ASP.NET Core | C# |
-| [youlai-rust](https://gitee.com/youlaiorg/youlai-rust) | Axum + SeaORM | Rust |
+| [youlai-axum](https://gitee.com/youlaiorg/youlai-axum) | Axum + SeaORM | Rust |
 
 > **youlai-boot** 还提供以下变种和分支版本：[多租户](https://gitee.com/youlaiorg/youlai-boot-tenant)（Spring Boot 4）· [MyBatis-Flex](https://gitee.com/youlaiorg/youlai-boot-flex)（Spring Boot 4）· [Spring Boot 3](https://gitee.com/youlaiorg/youlai-boot/tree/spring-boot-3) · [PostgreSQL](https://gitee.com/youlaiorg/youlai-boot/tree/db-pg) · [多模块](https://gitee.com/youlaiorg/youlai-boot/tree/multi-module)
 >
@@ -171,38 +186,20 @@ youlai-fastapi/
 
 | 资源 | 地址 |
 |:-----|:-----|
-| 📖 完整文档站 | [www.youlai.tech](https://www.youlai.tech/) |
-| 🖥️ PC 端在线预览 | [vue.youlai.tech](https://vue.youlai.tech) |
-| 📱 移动端在线预览 | [app.youlai.tech](https://app.youlai.tech) |
-| 🔗 Apifox 接口文档 | [apifox.com](https://www.apifox.cn/apidoc/shared-195e783f-4d85-4235-a038-eec696de4ea5) |
-| 🔗 本地接口文档 | [localhost:8000/docs](http://localhost:8000/docs) |
+| 完整文档站 | https://www.youlai.tech |
+| Apifox 接口文档 | https://www.apifox.cn/apidoc/shared-195e783f-4d85-4235-a038-eec696de4ea5 |
+| PC 端在线预览 | https://vue.youlai.tech |
+| 移动端在线预览 | https://app.youlai.tech |
 
-## 参与贡献
+## 贡献与协议
 
-欢迎提交 Issue 和 Pull Request！详见 [贡献指南](https://www.youlai.tech/faq/help)。
-
-## 开源协议
-
-本项目基于 [Apache License 2.0](LICENSE) 开源，可免费用于商业项目。
-
----
+欢迎在 [Issue](https://gitee.com/youlaiorg/youlai-fastapi/issues) 提交问题或反馈，也欢迎提交 Pull Request，支持与合作见[支持指南](https://www.youlai.tech/docs/support/)。本项目基于 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) 开源，可免费用于商业项目。如需商务合作、二次开发、项目定制或部署支持，可联系作者微信（见下方二维码）。
 
 <table align="center">
   <tr>
-    <td align="center">
-      <img src="./docs/images/qrcode/wechat-official.png" height="180" alt="公众号「有来技术」"><br>
-      <sub>公众号「有来技术」</sub>
-    </td>
-    <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-    <td align="center">
-      <img src="./docs/images/qrcode/wechat-mp.jpg" height="180" alt="小程序「有来技术」"><br>
-      <sub>小程序「有来技术」</sub>
-    </td>
-    <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-    <td align="center">
-      <img src="./docs/images/qrcode/wechat-personal.png" height="180" alt="添加作者微信"><br>
-      <sub>添加作者微信</sub>
-    </td>
+    <td align="center" width="160"><img src="./docs/images/qrcode/wechat-official.jpg" width="140" alt="公众号「有来技术」"><br><sub>公众号「有来技术」</sub></td>
+    <td align="center" width="160"><img src="./docs/images/qrcode/wechat-mp.jpg" width="140" alt="小程序「有来技术」"><br><sub>小程序「有来技术」</sub></td>
+    <td align="center" width="160"><img src="./docs/images/qrcode/wechat-personal.png" width="140" alt="添加作者微信"><br><sub>添加作者微信</sub></td>
   </tr>
 </table>
 

@@ -2,13 +2,15 @@
 
 from pydantic import BaseModel, Field
 
+from app.serializers import BigId
+
 
 class MenuQuery(BaseModel):
     keywords: str | None = None
 
 
 class MenuCreate(BaseModel):
-    parentId: int = Field(default=0, description="父菜单ID")
+    parentId: BigId = Field(default=0, description="父菜单ID")
     name: str = Field(..., min_length=1, max_length=64, description="菜单名称")
     type: str = Field(..., description="菜单类型 C-目录 M-菜单 E-外链 B-按钮")
     routeName: str | None = Field(default=None)
@@ -26,7 +28,7 @@ class MenuCreate(BaseModel):
 
 
 class MenuUpdate(MenuCreate):
-    id: int = Field(..., description="菜单ID")
+    id: BigId = Field(..., description="菜单ID")
 
 
 class MenuForm(MenuUpdate):
@@ -34,13 +36,13 @@ class MenuForm(MenuUpdate):
 
 
 class MenuVisibleForm(BaseModel):
-    menuId: int
+    menuId: BigId
     visible: int
 
 
 class MenuVO(BaseModel):
-    id: int | None = None
-    parentId: int = 0
+    id: BigId | None = None
+    parentId: BigId = 0
     name: str = ""
     type: str = "M"
     routeName: str | None = None

@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 
+from app.serializers import BigId
+
 
 class DictQuery(BaseModel):
     pageNum: int = Field(default=1, ge=1)
@@ -17,7 +19,7 @@ class DictCreate(BaseModel):
 
 
 class DictUpdate(BaseModel):
-    id: int
+    id: BigId
     dictCode: str = Field(..., min_length=1, max_length=50)
     name: str = Field(..., min_length=1, max_length=50)
     status: int = Field(default=1)
@@ -39,7 +41,7 @@ class DictItemCreate(BaseModel):
 
 
 class DictItemUpdate(BaseModel):
-    id: int
+    id: BigId
     dictCode: str
     value: str
     label: str
@@ -54,7 +56,7 @@ class DictItemForm(DictItemUpdate):
 
 
 class DictVO(BaseModel):
-    id: int | None = None
+    id: BigId | None = None
     dictCode: str = ""
     name: str = ""
     status: int = 1
@@ -65,7 +67,7 @@ class DictVO(BaseModel):
 
 
 class DictItemVO(BaseModel):
-    id: int | None = None
+    id: BigId | None = None
     dictCode: str = ""
     value: str = ""
     label: str = ""

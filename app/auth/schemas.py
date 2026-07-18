@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 
+from app.serializers import BigId
+
 
 class LoginForm(BaseModel):
     """账号密码登录表单。"""
@@ -32,13 +34,13 @@ class LoginResult(BaseModel):
 
 class UserInfoVO(BaseModel):
     """当前用户信息 VO — 前端 /api/v1/users/me 返回。"""
-    userId: int | None = None
+    userId: BigId | None = None
     username: str = ""
     nickname: str = ""
     avatar: str | None = None
     roles: list[str] = Field(default_factory=list)
     perms: list[str] = Field(default_factory=list)
-    deptId: int | None = None
+    deptId: BigId | None = None
 
 
 class SecurityUser(BaseModel):

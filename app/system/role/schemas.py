@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 
+from app.serializers import BigId
+
 
 class RoleQuery(BaseModel):
     pageNum: int = Field(default=1, ge=1)
@@ -16,40 +18,40 @@ class RoleCreate(BaseModel):
     sort: int = Field(default=0, description="排序")
     status: int = Field(default=1, description="状态 1-正常 0-停用")
     dataScope: int | None = Field(default=None, description="数据权限范围")
-    menuIds: list[int] = Field(default_factory=list, description="菜单权限ID列表")
-    deptIds: list[int] = Field(default_factory=list, description="数据权限部门ID列表")
+    menuIds: list[BigId] = Field(default_factory=list, description="菜单权限ID列表")
+    deptIds: list[BigId] = Field(default_factory=list, description="数据权限部门ID列表")
 
 
 class RoleUpdate(BaseModel):
-    id: int = Field(..., description="角色ID")
+    id: BigId = Field(..., description="角色ID")
     name: str = Field(..., min_length=1, max_length=64)
     code: str = Field(..., min_length=1, max_length=32)
     sort: int = Field(default=0)
     status: int = Field(default=1)
     dataScope: int | None = None
-    menuIds: list[int] = Field(default_factory=list)
-    deptIds: list[int] = Field(default_factory=list)
+    menuIds: list[BigId] = Field(default_factory=list)
+    deptIds: list[BigId] = Field(default_factory=list)
 
 
 class RoleStatusForm(BaseModel):
-    roleId: int
+    roleId: BigId
     status: int
 
 
 class RoleMenuForm(BaseModel):
-    roleId: int
-    menuIds: list[int] = Field(default_factory=list)
+    roleId: BigId
+    menuIds: list[BigId] = Field(default_factory=list)
 
 
 class RoleVO(BaseModel):
-    id: int | None = None
+    id: BigId | None = None
     name: str = ""
     code: str = ""
     sort: int = 0
     status: int = 1
     dataScope: int | None = None
-    menuIds: list[int] = Field(default_factory=list)
-    deptIds: list[int] = Field(default_factory=list)
+    menuIds: list[BigId] = Field(default_factory=list)
+    deptIds: list[BigId] = Field(default_factory=list)
     createTime: str | None = None
     updateTime: str | None = None
     model_config = {"from_attributes": True}
@@ -61,6 +63,6 @@ class RoleForm(RoleUpdate):
 
 class RoleOptionVO(BaseModel):
     """角色下拉选项。"""
-    value: int = Field(..., alias="id")
+    value: BigId = Field(..., alias="id")
     label: str = Field(..., alias="name")
     model_config = {"from_attributes": True}

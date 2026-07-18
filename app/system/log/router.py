@@ -5,6 +5,8 @@ from sqlalchemy import func, select, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
+from app.serializers import BigId
+
 from datetime import date, timedelta
 
 from app.database import get_db
@@ -26,7 +28,7 @@ class LogQuery(BaseModel):
 
 
 class LogVO(BaseModel):
-    id: int | None = None
+    id: BigId | None = None
     module: int | None = None
     actionType: int | None = None
     title: str | None = None
@@ -42,7 +44,7 @@ class LogVO(BaseModel):
     status: int | None = None
     errorMsg: str | None = None
     executionTime: int | None = None
-    operatorId: int | None = None
+    operatorId: BigId | None = None
     operatorName: str | None = None
     createTime: str | None = None
     model_config = {"from_attributes": True}

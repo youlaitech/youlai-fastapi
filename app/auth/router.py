@@ -11,6 +11,7 @@ from app.auth.schemas import CaptchaResult, SysUserDetails
 from app.response import Result, ResultCode
 from app.auth.schemas import LoginForm, LoginResult, RefreshTokenForm
 from app.auth.service import AuthService
+from app.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/api/v1/auth", tags=["认证管理"])
 
@@ -38,6 +39,8 @@ async def login_by_sms(
 
 @router.post("/sms/code", summary="发送登录短信验证码")
 async def send_sms_code(mobile: str, db: AsyncSession = Depends(get_db)):
+    # 同一手机号 60 秒内仅允许发送一次验证码
+    await check_rate_limit(f"rate_limit:api:sms:{mobile}", 1, 60)
     await AuthService(db).send_sms_code(mobile)
     return Result(data=None)
 

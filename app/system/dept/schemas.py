@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 
+from app.serializers import BigId
+
 
 class DeptQuery(BaseModel):
     keywords: str | None = None
@@ -11,25 +13,25 @@ class DeptQuery(BaseModel):
 class DeptCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="部门名称")
     code: str = Field(..., min_length=1, max_length=100, description="部门编号")
-    parentId: int = Field(default=0, description="父节点ID")
+    parentId: BigId = Field(default=0, description="父节点ID")
     sort: int = Field(default=0, description="排序")
     status: int = Field(default=1, description="状态 1-正常 0-禁用")
 
 
 class DeptUpdate(BaseModel):
-    id: int
+    id: BigId
     name: str = Field(..., min_length=1, max_length=100)
     code: str = Field(..., min_length=1, max_length=100)
-    parentId: int = Field(default=0)
+    parentId: BigId = Field(default=0)
     sort: int = Field(default=0)
     status: int = Field(default=1)
 
 
 class DeptVO(BaseModel):
-    id: int | None = None
+    id: BigId | None = None
     name: str = ""
     code: str = ""
-    parentId: int = 0
+    parentId: BigId = 0
     treePath: str = ""
     sort: int = 0
     status: int = 1

@@ -6,6 +6,8 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
+from app.serializers import BigId
+
 from app.pagination import PageResult
 from app.database import get_db
 from app.dependencies import get_current_user, require_perm
@@ -41,7 +43,7 @@ class NoticeForm(BaseModel):
 
 
 class NoticeVO(BaseModel):
-    id: int | None = None
+    id: BigId | None = None
     title: str = ""
     content: str = ""
     type: int = 1
@@ -62,7 +64,7 @@ class NoticeDetailVO(NoticeVO):
 
 
 class UserNoticeVO(BaseModel):
-    id: int | None = None
+    id: BigId | None = None
     title: str = ""
     content: str = ""
     type: int = 1

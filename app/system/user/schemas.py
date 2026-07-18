@@ -2,13 +2,15 @@
 
 from pydantic import BaseModel, Field
 
+from app.serializers import BigId
+
 
 class UserQuery(BaseModel):
     """用户分页查询参数。"""
     pageNum: int = Field(default=1, ge=1, description="当前页码")
     pageSize: int = Field(default=10, ge=1, le=100, description="每页条数")
     keywords: str | None = Field(default=None, description="搜索关键词（用户名/昵称/手机号）")
-    deptId: int | None = Field(default=None, description="部门ID")
+    deptId: BigId | None = Field(default=None, description="部门ID")
     status: int | None = Field(default=None, description="状态")
 
 
@@ -18,24 +20,24 @@ class UserCreate(BaseModel):
     nickname: str = Field(..., min_length=1, max_length=64, description="昵称")
     password: str = Field(default="123456", max_length=100, description="密码")
     gender: int | None = Field(default=None, description="性别")
-    deptId: int | None = Field(default=None, description="部门ID")
+    deptId: BigId | None = Field(default=None, description="部门ID")
     mobile: str | None = Field(default=None, pattern=r"^1[3-9]\d{9}$", description="手机号")
     email: str | None = Field(default=None, max_length=100, description="邮箱")
     status: int = Field(default=1, description="状态 1-启用 0-禁用")
-    roleIds: list[int] = Field(default_factory=list, description="角色ID列表")
+    roleIds: list[BigId] = Field(default_factory=list, description="角色ID列表")
 
 
 class UserUpdate(BaseModel):
     """更新用户表单。"""
-    id: int = Field(..., description="用户ID")
+    id: BigId = Field(..., description="用户ID")
     username: str = Field(..., min_length=1, max_length=64, description="用户名")
     nickname: str = Field(..., min_length=1, max_length=64, description="昵称")
     gender: int | None = Field(default=None, description="性别")
-    deptId: int | None = Field(default=None, description="部门ID")
+    deptId: BigId | None = Field(default=None, description="部门ID")
     mobile: str | None = Field(default=None, pattern=r"^1[3-9]\d{9}$", description="手机号")
     email: str | None = Field(default=None, max_length=100, description="邮箱")
     status: int = Field(default=1, description="状态 1-启用 0-禁用")
-    roleIds: list[int] = Field(default_factory=list, description="角色ID列表")
+    roleIds: list[BigId] = Field(default_factory=list, description="角色ID列表")
 
 
 class UserForm(UserUpdate):
@@ -44,17 +46,17 @@ class UserForm(UserUpdate):
 
 class UserVO(BaseModel):
     """用户 VO — 列表/详情返回。"""
-    id: int | None = None
+    id: BigId | None = None
     username: str = ""
     nickname: str = ""
     gender: int | None = None
-    deptId: int | None = None
+    deptId: BigId | None = None
     deptName: str | None = None
     mobile: str | None = None
     email: str | None = None
     avatar: str | None = None
     status: int = 1
-    roleIds: list[int] = Field(default_factory=list)
+    roleIds: list[BigId] = Field(default_factory=list)
     roleNames: list[str] = Field(default_factory=list)
     createTime: str | None = None
     updateTime: str | None = None
@@ -63,13 +65,13 @@ class UserVO(BaseModel):
 
 class UserStatusForm(BaseModel):
     """修改用户状态。"""
-    userId: int = Field(..., description="用户ID")
+    userId: BigId = Field(..., description="用户ID")
     status: int = Field(..., description="状态 1-启用 0-禁用")
 
 
 class UserPasswordForm(BaseModel):
     """重置密码。"""
-    userId: int = Field(..., description="用户ID")
+    userId: BigId = Field(..., description="用户ID")
     password: str = Field(..., min_length=6, max_length=100, description="新密码")
 
 
