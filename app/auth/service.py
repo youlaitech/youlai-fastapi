@@ -111,11 +111,11 @@ class AuthService:
         }
 
     async def get_auth_info_by_user_id(self, user_id: int) -> dict:
-        """按用户 ID 取认证信息（含 username/nickname/avatar/roles/perms），供扫码登录展示。"""
+        """获取用户认证信息：username/nickname/avatar/roles/perms。"""
         return await self.get_user_info(user_id)
 
     async def login_by_qr(self, user_id: int) -> dict:
-        """扫码登录换发会话令牌：按 ID 查用户并复用既有签发逻辑。"""
+        """扫码登录后签发令牌。"""
         result = await self.db.execute(
             select(SysUser).where(SysUser.id == user_id, SysUser.is_deleted == 0)
         )

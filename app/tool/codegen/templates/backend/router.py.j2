@@ -1,0 +1,62 @@
+"""[[ entity_name ]] 路由 — 由代码生成器生成。"""
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.dependencies import require_perm
+from app.pagination import PageResult
+from app.response import Result
+from .service import [[ entity_name ]]Service
+from .schemas import (
+    [[ entity_name ]]Create,
+    [[ entity_name ]]Update,
+    [[ entity_name ]]QueryParams,
+    [[ entity_name ]]VO,
+)
+
+router = APIRouter(prefix="/api/v1/[[ entity_kebab ]]", tags=["[[ business_name ]]管理"])
+
+
+@router.get("", summary="获取[[ business_name ]]分页列表")
+async def get_page(
+    page_num: int = Query(default=1, ge=1, alias="pageNum"),
+    page_size: int = Query(default=10, ge=1, le=100, alias="pageSize"),
+{% for c in columns %}{% if c.is_show_in_query %}    [[ c.field_name ]]: str | None = Query(default=None, alias="[[ c.field_name ]]"),
+{% endif %}{% endfor %}    db: AsyncSession = Depends(get_db),
+):
+    query = [[ entity_name ]]QueryParams(
+        pageNum=page_num, pageSize=page_size,
+{% for c in columns %}{% if c.is_show_in_query %}        [[ c.field_name ]]=[[ c.field_name ]],
+{% endif %}{% endfor %}    )
+    records, total = await [[ entity_name ]]Service(db).get_page(query)
+    return Result(
+        data=PageResult(records=records, total=total, pageNum=page_num, pageSize=page_size)
+    )
+
+
+@router.get("/{id}/form", summary="获取[[ business_name ]]表单数据")
+async def get_form_data(id: int, db: AsyncSession = Depends(get_db)):
+    data = await [[ entity_name ]]Service(db).get_form_data(id)
+    return Result(data=data)
+
+
+@router.post("", summary="新增[[ business_name ]]",
+             dependencies=[Depends(require_perm("[[ module_name ]]:[[ entity_kebab ]]:create"))])
+async def create(form: [[ entity_name ]]Create, db: AsyncSession = Depends(get_db)):
+    await [[ entity_name ]]Service(db).create(form)
+    return Result(data=None)
+
+
+@router.put("/{id}", summary="修改[[ business_name ]]",
+            dependencies=[Depends(require_perm("[[ module_name ]]:[[ entity_kebab ]]:update"))])
+async def update(id: int, form: [[ entity_name ]]Update, db: AsyncSession = Depends(get_db)):
+    await [[ entity_name ]]Service(db).update(id, form)
+    return Result(data=None)
+
+
+@router.delete("/{ids}", summary="删除[[ business_name ]]",
+               dependencies=[Depends(require_perm("[[ module_name ]]:[[ entity_kebab ]]:delete"))])
+async def delete(ids: str, db: AsyncSession = Depends(get_db)):
+    count = await [[ entity_name ]]Service(db).delete(ids)
+    return Result(data=count)

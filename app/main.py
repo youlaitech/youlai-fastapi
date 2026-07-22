@@ -32,7 +32,7 @@ def create_app() -> FastAPI:
     """构建 FastAPI 实例，注册路由、中间件与异常处理器。"""
     app = FastAPI(
         title="youlai-fastapi",
-        description="youlai-admin FastAPI 后端",
+        description="youlai-fastapi 企业级权限管理系统后端",
         version="1.0.0",
         docs_url="/docs",
         redoc_url="/redoc",

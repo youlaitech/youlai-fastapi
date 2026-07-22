@@ -55,6 +55,8 @@ dependencies = [
     # "arq>=0.26.0,<1",
     # Rate limiting
     "slowapi>=0.1.9,<1",
+    # Template
+    "jinja2>=3.1.0,<4",
 ]
 
 [project.optional-dependencies]

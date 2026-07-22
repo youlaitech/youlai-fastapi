@@ -1,0 +1,33 @@
+"""[[ entity_name ]] Pydantic Schemas — 由代码生成器生成。"""
+
+from datetime import date, datetime, time
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
+
+
+class [[ entity_name ]]QueryParams(BaseModel):
+    page_num: int = Field(default=1, ge=1, alias="pageNum")
+    page_size: int = Field(default=10, ge=1, le=100, alias="pageSize")
+{% for c in columns %}{% if c.is_show_in_query %}    [[ c.field_name ]]: [[ c.py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]")
+{% endif %}{% endfor %}
+    model_config = {"populate_by_name": True}
+
+
+class [[ entity_name ]]Create(BaseModel):
+{% for c in columns %}{% if not c.is_pk and c.is_show_in_form %}{% if c.is_required %}    [[ c.field_name ]]: [[ c.py_type ]]{% if c.field_type == "str" %} = Field(..., min_length=1, alias="[[ c.field_name ]]"){% else %} = Field(..., alias="[[ c.field_name ]]"){% endif %}
+{% else %}    [[ c.field_name ]]: [[ c.py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]")
+{% endif %}{% endif %}{% endfor %}
+    model_config = {"populate_by_name": True}
+
+
+class [[ entity_name ]]Update(BaseModel):
+{% for c in columns %}{% if not c.is_pk and c.is_show_in_form %}    [[ c.field_name ]]: [[ c.py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]")
+{% endif %}{% endfor %}
+    model_config = {"populate_by_name": True}
+
+
+class [[ entity_name ]]VO(BaseModel):
+{% for c in columns %}{% if not c.is_pk %}    [[ c.field_name ]]: [[ c.py_type ]]{% if c.is_nullable %} | None{% endif %} = Field(default={% if c.is_nullable %}None{% elif c.field_type == "str" %}""{% elif c.field_type == "int" %}0{% elif c.field_type == "bool" %}False{% else %}None{% endif %}, alias="[[ c.field_name ]]")
+{% endif %}{% endfor %}
+    model_config = {"populate_by_name": True}

@@ -1,6 +1,6 @@
 """通知公告。"""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,8 @@ from app.tool.sse.manager import broadcast, get_online_users, send_to_user
 from app.tool.sse.topics import NOTICE, NOTICE_REVOKE
 from app.system.notice.models import SysNotice, SysUserNotice
 from app.system.user.models import SysUser
+from app.system.log.operation_log import operation_log
+from app.system.log.constants import ActionTypeEnum, LogModuleEnum
 
 router = APIRouter(prefix="/api/v1/notices", tags=["通知公告"])
 
@@ -310,7 +312,9 @@ async def get_notice(
 
 
 @router.post("", summary="创建通知", dependencies=[Depends(require_perm("sys:notice:create"))])
+@operation_log(module=LogModuleEnum.NOTICE, action_type=ActionTypeEnum.INSERT, title="新增通知")
 async def create_notice(
+    request: Request,
     form: NoticeForm,
     user: SysUserDetails = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -319,7 +323,9 @@ async def create_notice(
 
 
 @router.put("/{notice_id}", summary="更新通知", dependencies=[Depends(require_perm("sys:notice:update"))])
+@operation_log(module=LogModuleEnum.NOTICE, action_type=ActionTypeEnum.UPDATE, title="修改通知")
 async def update_notice(
+    request: Request,
     notice_id: int,
     form: NoticeForm,
     user: SysUserDetails = Depends(get_current_user),
@@ -334,7 +340,9 @@ async def get_notice_form(notice_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{notice_id}/publish", summary="发布通知", dependencies=[Depends(require_perm("sys:notice:publish"))])
+@operation_log(module=LogModuleEnum.NOTICE, action_type=ActionTypeEnum.UPDATE, title="发布通知")
 async def publish_notice(
+    request: Request,
     notice_id: int,
     user: SysUserDetails = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -349,14 +357,26 @@ async def publish_notice(
 
 
 @router.put("/{notice_id}/revoke", summary="撤回通知", dependencies=[Depends(require_perm("sys:notice:revoke"))])
-async def revoke_notice(notice_id: int, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.NOTICE, action_type=ActionTypeEnum.UPDATE, title="撤回通知")
+async def revoke_notice(
+    request: Request,
+    notice_id: int,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     nid = await NoticeService(db).revoke(notice_id)
     await broadcast(NOTICE_REVOKE, {"id": nid})
     return Result(data=None)
 
 
 @router.delete("/{notice_id}", summary="删除通知", dependencies=[Depends(require_perm("sys:notice:delete"))])
-async def delete_notice(notice_id: int, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.NOTICE, action_type=ActionTypeEnum.DELETE, title="删除通知")
+async def delete_notice(
+    request: Request,
+    notice_id: int,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     await NoticeService(db).delete(notice_id)
     return Result(data=None)
 

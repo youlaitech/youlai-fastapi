@@ -129,11 +129,10 @@ def build_data_scope_filters(
     dept_col: ColumnElement | None = None,
     user_col: ColumnElement | None = None,
 ) -> list[ColumnElement]:
-    """返回 WHERE 条件列表，可直接 stmt.where(*filters)。
+    """返回数据权限 WHERE 条件列表，可直接 `stmt.where(*filters)`。
 
-    dept_col 为 None 则部门相关范围（DEPT/DEPT_AND_CHILD/CUSTOM_DEPT）不生效。
-    user_col 为 None 则本人范围（OWN）不生效。
-    返回空列表表示不过滤。
+    dept_col 为 None 时跳过部门过滤（DEPT / DEPT_AND_CHILD / CUSTOM_DEPT）。
+    user_col 为 None 时跳过本人过滤（OWN）。
     """
     if _should_skip(user):
         return []
@@ -149,7 +148,7 @@ def apply_data_scope(
     dept_col: ColumnElement | None = None,
     user_col: ColumnElement | None = None,
 ):
-    """给 SELECT 语句附加数据权限 WHERE 条件，超管/ALL 原样返回。"""
+    """给 SELECT 语句附加数据权限 WHERE 条件。超管或 ALL 数据范围时不附加过滤。"""
     filters = build_data_scope_filters(user, dept_col, user_col)
     if filters:
         stmt = stmt.where(*filters)

@@ -1,20 +1,23 @@
 """系统配置管理。"""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.schemas import SysUserDetails
 from app.serializers import BigId
 from loguru import logger
 
 from app.pagination import PageResult
 from app.database import get_db
 from app.redis import get_redis
-from app.dependencies import require_perm
+from app.dependencies import get_current_user, require_perm
 from app.exceptions import BusinessException
 from app.response import Result, ResultCode
 from app.system.config.models import SysConfig
+from app.system.log.constants import ActionTypeEnum, LogModuleEnum
+from app.system.log.operation_log import operation_log
 
 router = APIRouter(prefix="/api/v1/configs", tags=["系统配置"])
 
@@ -148,10 +151,23 @@ async def create_config(form: ConfigForm, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{config_id}", summary="更新配置", dependencies=[Depends(require_perm("sys:config:update"))])
-async def update_config(config_id: int, form: ConfigForm, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.CONFIG, action_type=ActionTypeEnum.UPDATE, title="修改配置")
+async def update_config(
+    request: Request,
+    config_id: int,
+    form: ConfigForm,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     return Result(data=await ConfigService(db).update(config_id, form))
 
 
 @router.delete("/{ids}", summary="删除配置", dependencies=[Depends(require_perm("sys:config:delete"))])
-async def delete_configs(ids: str, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.CONFIG, action_type=ActionTypeEnum.DELETE, title="删除配置")
+async def delete_configs(
+    request: Request,
+    ids: str,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     return Result(data=await ConfigService(db).delete(ids))

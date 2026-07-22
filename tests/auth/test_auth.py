@@ -5,13 +5,13 @@ import pytest
 
 @pytest.mark.anyio
 async def test_get_captcha(async_client):
-    """验证码生成接口 — 应返回 captchaId 和 captchaImg。"""
+    """验证码生成接口 — 应返回 captchaId 和 captchaBase64。"""
     response = await async_client.get("/api/v1/auth/captcha")
     assert response.status_code == 200
     data = response.json()
     assert data["code"] == "00000"
     assert "captchaId" in data["data"]
-    assert "captchaImg" in data["data"]
+    assert "captchaBase64" in data["data"]
 
 
 @pytest.mark.anyio

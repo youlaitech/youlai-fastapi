@@ -2,12 +2,15 @@
 
 import time
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.schemas import SysUserDetails
 from app.database import get_db
-from app.dependencies import require_perm
+from app.dependencies import get_current_user, require_perm
 from app.response import Result
+from app.system.log.constants import ActionTypeEnum, LogModuleEnum
+from app.system.log.operation_log import operation_log
 from app.tool.sse.manager import broadcast
 from app.tool.sse.topics import DICT
 from app.system.dict.schemas import (
@@ -41,7 +44,13 @@ async def get_dict_form(id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", summary="新增字典", dependencies=[Depends(require_perm("sys:dict:create"))])
-async def create_dict(form: DictCreate, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.DICT, action_type=ActionTypeEnum.INSERT, title="新增字典")
+async def create_dict(
+    request: Request,
+    form: DictCreate,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await DictService(db).create_type(form)
     await broadcast(DICT, {"dictCode": form.dictCode, "timestamp": int(time.time() * 1000)})
     return Result(data=result)
@@ -57,7 +66,13 @@ async def update_dict(id: int, form: DictUpdate, db: AsyncSession = Depends(get_
 
 
 @router.delete("/{ids}", summary="删除字典", dependencies=[Depends(require_perm("sys:dict:delete"))])
-async def delete_dict(ids: str, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.DICT, action_type=ActionTypeEnum.DELETE, title="删除字典")
+async def delete_dict(
+    request: Request,
+    ids: str,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     # 删除前取出 dictCode 列表
     codes = await DictService(db).get_dict_codes_by_ids(ids)
     await DictService(db).delete_type(ids)
@@ -83,7 +98,14 @@ async def get_dict_item_form(dict_code: str, item_id: int, db: AsyncSession = De
 
 
 @router.post("/{dict_code}/items", summary="新增字典项", dependencies=[Depends(require_perm("sys:dict-item:create"))])
-async def create_dict_item(dict_code: str, form: DictItemCreate, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.DICT, action_type=ActionTypeEnum.INSERT, title="新增字典项")
+async def create_dict_item(
+    request: Request,
+    dict_code: str,
+    form: DictItemCreate,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     form.dictCode = dict_code
     result = await DictService(db).create_item(form)
     await broadcast(DICT, {"dictCode": dict_code, "timestamp": int(time.time() * 1000)})
@@ -100,7 +122,14 @@ async def update_dict_item(dict_code: str, item_id: int, form: DictItemUpdate, d
 
 
 @router.delete("/{dict_code}/items/{item_ids}", summary="删除字典项", dependencies=[Depends(require_perm("sys:dict-item:delete"))])
-async def delete_dict_items(dict_code: str, item_ids: str, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.DICT, action_type=ActionTypeEnum.DELETE, title="删除字典项")
+async def delete_dict_items(
+    request: Request,
+    dict_code: str,
+    item_ids: str,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     await DictService(db).delete_items(item_ids)
     await broadcast(DICT, {"dictCode": dict_code, "timestamp": int(time.time() * 1000)})
     return Result(data=None)

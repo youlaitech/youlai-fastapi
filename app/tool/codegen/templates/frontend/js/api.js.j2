@@ -1,0 +1,46 @@
+import request from "@/utils/request";
+
+const [[ entity_upper_snake ]]_BASE_URL = "/api/v1/[[ entity_kebab ]]";
+
+const [[ entity_name ]]API = {
+  /** 获取[[ business_name ]]分页数据 */
+  getPage(queryParams) {
+    return request({
+      url: `${[[ entity_upper_snake ]]_BASE_URL}`,
+      method: "get",
+      params: queryParams,
+    });
+  },
+
+  getFormData(id) {
+    return request({
+      url: `${[[ entity_upper_snake ]]_BASE_URL}/${id}/form`,
+      method: "get",
+    });
+  },
+
+  create(data) {
+    return request({
+      url: `${[[ entity_upper_snake ]]_BASE_URL}`,
+      method: "post",
+      data,
+    });
+  },
+
+  update(id, data) {
+    return request({
+      url: `${[[ entity_upper_snake ]]_BASE_URL}/${id}`,
+      method: "put",
+      data,
+    });
+  },
+
+  deleteByIds(ids) {
+    return request({
+      url: `${[[ entity_upper_snake ]]_BASE_URL}/${ids}`,
+      method: "delete",
+    });
+  },
+};
+
+export default [[ entity_name ]]API;

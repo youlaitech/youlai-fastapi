@@ -85,7 +85,7 @@ class DeptService:
         return self._to_vo(dept)
 
     async def update(self, form: DeptUpdate) -> DeptVO:
-        """更新部门（编号重复返回 B0002）。"""
+        """更新部门（编号重复返回 B0002）；parent_id 变动时重算 tree_path 并级联子节点。"""
         result = await self.db.execute(
             select(SysDept).where(SysDept.id == form.id, SysDept.is_deleted == 0)
         )
@@ -99,15 +99,37 @@ class DeptService:
         if exist.scalar() is not None:
             raise BusinessException(code=ResultCode.DUPLICATE_KEY, msg="部门编号已存在")
 
+        old_parent_id = dept.parent_id
         dept.name = form.name
         dept.code = form.code
         dept.parent_id = form.parentId
         dept.sort = form.sort
         dept.status = form.status
         dept.update_time = datetime.now()
+
+        if old_parent_id != dept.parent_id:
+            if dept.parent_id > 0:
+                parent = await self.db.get(SysDept, dept.parent_id)
+                dept.tree_path = f"{parent.tree_path},{dept.id}" if parent and parent.tree_path else str(dept.id)
+            else:
+                dept.tree_path = "0"
+            await self.db.flush()
+            # 级联更新子部门的 tree_path
+            await self._update_child_tree_paths(dept)
+
         await self.db.flush()
         logger.info(f"Dept updated: {form.name}")
         return self._to_vo(dept)
+
+    async def _update_child_tree_paths(self, parent: SysDept) -> None:
+        """递归更新子部门的 tree_path。"""
+        children = await self.db.execute(
+            select(SysDept).where(SysDept.parent_id == parent.id, SysDept.is_deleted == 0)
+        )
+        for child in children.scalars().all():
+            child.tree_path = f"{parent.tree_path},{child.id}" if parent.tree_path else str(child.id)
+            await self.db.flush()
+            await self._update_child_tree_paths(child)
 
     async def delete(self, ids: str) -> int:
         """批量逻辑删除部门；存在子部门的部门拒绝删除（返回 B0004）。"""

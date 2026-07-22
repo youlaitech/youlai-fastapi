@@ -66,4 +66,4 @@ async def refresh_token(form: RefreshTokenForm, db: AsyncSession = Depends(get_d
 @router.get("/captcha", summary="获取验证码")
 async def get_captcha():
     result = await CaptchaService().generate()
-    return Result(data=CaptchaResult(captchaId=result.captchaId, captchaImg=result.captchaImg))
+    return Result(data=CaptchaResult(captchaId=result.captchaId, captchaBase64=result.captchaBase64))

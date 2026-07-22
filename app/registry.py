@@ -12,3 +12,4 @@ from app.system.menu import models as _menu_models  # noqa: F401
 from app.system.notice import models as _notice_models  # noqa: F401
 from app.system.role import models as _role_models  # noqa: F401
 from app.system.user import models as _user_models  # noqa: F401
+from app.tool.codegen import models as _codegen_models  # noqa: F401

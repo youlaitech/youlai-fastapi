@@ -1,0 +1,70 @@
+"""[[ entity_name ]] 服务 — 由代码生成器生成。"""
+
+from sqlalchemy import func, select, text, update as sa_update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.exceptions import BusinessException
+from app.response import ResultCode
+from .models import [[ entity_name ]]
+from .schemas import [[ entity_name ]]Create, [[ entity_name ]]Update, [[ entity_name ]]QueryParams, [[ entity_name ]]VO
+
+
+class [[ entity_name ]]Service:
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_page(self, query: [[ entity_name ]]QueryParams) -> tuple[list[[[ entity_name ]]VO], int]:
+        conditions = []
+{% for c in columns %}{% if c.is_show_in_query and c.form_type_name == "INPUT" %}        if getattr(query, "[[ c.field_name ]]", None):
+            conditions.append([[ entity_name ]].[[ c.field_name ]].ilike(f"%{getattr(query, '[[ c.field_name ]]')}%"))
+{% elif c.is_show_in_query %}        if getattr(query, "[[ c.field_name ]]", None):
+            conditions.append([[ entity_name ]].[[ c.field_name ]] == getattr(query, "[[ c.field_name ]]"))
+{% endif %}{% endfor %}
+        base = select([[ entity_name ]]).where(*conditions)
+
+        total_stmt = select(func.count()).select_from(base.subquery())
+        total = (await self.db.execute(total_stmt)).scalar() or 0
+
+        offset = (query.page_num - 1) * query.page_size
+        rows = (await self.db.execute(base.offset(offset).limit(query.page_size))).scalars().all()
+
+        vos = [self._to_vo(r) for r in rows]
+        return vos, total
+
+    async def get_form_data(self, id: int) -> [[ entity_name ]]VO:
+        result = await self.db.execute(select([[ entity_name ]]).where([[ entity_name ]].id == id))
+        model = result.scalar_one_or_none()
+        if not model:
+            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="[[ business_name ]]不存在")
+        return self._to_vo(model)
+
+    async def create(self, form: [[ entity_name ]]Create) -> None:
+        model = [[ entity_name ]](
+{% for c in columns %}{% if not c.is_pk and c.is_show_in_form %}            [[ c.field_name ]]=form.[[ c.field_name ]],
+{% endif %}{% endfor %}        )
+        self.db.add(model)
+        await self.db.flush()
+
+    async def update(self, id: int, form: [[ entity_name ]]Update) -> None:
+        result = await self.db.execute(select([[ entity_name ]]).where([[ entity_name ]].id == id))
+        model = result.scalar_one_or_none()
+        if not model:
+            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="[[ business_name ]]不存在")
+{% for c in columns %}{% if not c.is_pk and c.is_show_in_form %}        if form.[[ c.field_name ]] is not None:
+            model.[[ c.field_name ]] = form.[[ c.field_name ]]
+{% endif %}{% endfor %}        await self.db.flush()
+
+    async def delete(self, ids: str) -> int:
+        id_list = [int(x) for x in ids.split(",") if x.strip()]
+        if not id_list:
+            raise BusinessException(code=ResultCode.REQUEST_REQUIRED_PARAMETER_IS_EMPTY)
+        stmt = text(f"UPDATE {[[ entity_name ]].__tablename__} SET is_deleted=1 WHERE id = ANY(:ids)")
+        result = await self.db.execute(stmt, {"ids": id_list})
+        return result.rowcount
+
+    @staticmethod
+    def _to_vo(model: [[ entity_name ]]) -> [[ entity_name ]]VO:
+        return [[ entity_name ]]VO(
+{% for c in columns %}{% if not c.is_pk %}            [[ c.field_name ]]=model.[[ c.field_name ]],
+{% endif %}{% endfor %}        )

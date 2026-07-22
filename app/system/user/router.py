@@ -7,7 +7,7 @@
 import asyncio
 import io
 
-from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, File
 from openpyxl import Workbook, load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
@@ -22,6 +22,8 @@ from app.system.user.schemas import (
     UserUpdate,
 )
 from app.system.user.service import UserService
+from app.system.log.operation_log import operation_log
+from app.system.log.constants import ActionTypeEnum, LogModuleEnum
 
 router = APIRouter(prefix="/api/v1/users", tags=["用户管理"])
 
@@ -58,7 +60,9 @@ async def get_user_profile(
 
 
 @router.put("/profile", summary="个人中心修改用户信息")
+@operation_log(module=LogModuleEnum.USER, action_type=ActionTypeEnum.UPDATE, title="修改个人资料")
 async def update_user_profile(
+    request: Request,
     form: UserProfileForm,
     user: SysUserDetails = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -67,7 +71,9 @@ async def update_user_profile(
 
 
 @router.put("/password", summary="当前用户修改密码")
+@operation_log(module=LogModuleEnum.USER, action_type=ActionTypeEnum.CHANGE_PASSWORD, title="修改密码")
 async def change_current_user_password(
+    request: Request,
     form: PasswordUpdateForm,
     user: SysUserDetails = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -157,7 +163,9 @@ async def download_template():
 
 
 @router.get("/export", summary="导出用户", dependencies=[Depends(require_perm("sys:user:export"))])
+@operation_log(module=LogModuleEnum.USER, action_type=ActionTypeEnum.EXPORT, title="导出用户")
 async def export_users(
+    request: Request,
     keywords: str | None = Query(default=None),
     deptId: int | None = Query(default=None),
     status: int | None = Query(default=None),
@@ -189,8 +197,11 @@ async def export_users(
 
 
 @router.post("/import", summary="导入用户", dependencies=[Depends(require_perm("sys:user:import"))])
+@operation_log(module=LogModuleEnum.USER, action_type=ActionTypeEnum.IMPORT, title="导入用户")
 async def import_users(
+    request: Request,
     file: UploadFile = File(...),
+    user: SysUserDetails = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     loop = asyncio.get_running_loop()
@@ -253,12 +264,26 @@ async def delete_users(ids: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/{user_id}/status", summary="修改用户状态", dependencies=[Depends(require_perm("sys:user:update"))])
-async def update_user_status(user_id: int, status: int, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.USER, action_type=ActionTypeEnum.UPDATE, title="修改用户状态")
+async def update_user_status(
+    request: Request,
+    user_id: int,
+    status: int,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     await UserService(db).update_status(user_id, status)
     return Result(data=None)
 
 
 @router.put("/{user_id}/password/reset", summary="重置指定用户密码", dependencies=[Depends(require_perm("sys:user:reset-password"))])
-async def reset_user_password(user_id: int, password: str, db: AsyncSession = Depends(get_db)):
+@operation_log(module=LogModuleEnum.USER, action_type=ActionTypeEnum.RESET_PASSWORD, title="重置用户密码")
+async def reset_user_password(
+    request: Request,
+    user_id: int,
+    password: str,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     await UserService(db).reset_password(user_id, password)
     return Result(data=None)

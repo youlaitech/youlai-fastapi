@@ -18,5 +18,8 @@ build/
 htmlcov/
 coverage.xml
 
+# 文件上传本地测试产物（file.type=local 时写入）
+uploads/
+
 # Alembic
 app/alembic/versions/*.pyc

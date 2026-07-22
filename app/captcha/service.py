@@ -78,7 +78,7 @@ class CaptchaService:
         img_base64 = base64.b64encode(img_bytes).decode()
 
         logger.info(f"Captcha generated: id={captcha_id}")
-        return CaptchaResult(captchaId=captcha_id, captchaImg=f"data:image/png;base64,{img_base64}")
+        return CaptchaResult(captchaId=captcha_id, captchaBase64=f"data:image/png;base64,{img_base64}")
 
     async def verify(self, captcha_id: str, code: str) -> bool:
         """校验验证码 — 一次性使用。"""

@@ -1,0 +1,50 @@
+import request from "@/utils/request";
+import type { [[ entity_name ]]Form, [[ entity_name ]]QueryParams, [[ entity_name ]]Item } from "./types";
+import type { PageResult } from "@/api/common";
+
+const [[ entity_upper_snake ]]_BASE_URL = "/api/v1/[[ entity_kebab ]]";
+
+const [[ entity_name ]]API = {
+    /** 获取[[ business_name ]]分页数据 */
+    getPage(queryParams?: [[ entity_name ]]QueryParams) {
+        return request<unknown, PageResult<[[ entity_name ]]Item>>({
+            url: `${[[ entity_upper_snake ]]_BASE_URL}`,
+            method: "get",
+            params: queryParams,
+        });
+    },
+    /** 获取[[ business_name ]]表单数据 */
+    getFormData(id: string) {
+        return request<unknown, [[ entity_name ]]Form>({
+            url: `${[[ entity_upper_snake ]]_BASE_URL}/${id}/form`,
+            method: "get",
+        });
+    },
+    /** 新增[[ business_name ]] */
+    create(data: [[ entity_name ]]Form) {
+        return request({
+            url: `${[[ entity_upper_snake ]]_BASE_URL}`,
+            method: "post",
+            data,
+        });
+    },
+    /** 更新[[ business_name ]] */
+     update(id: string, data: [[ entity_name ]]Form) {
+        return request({
+            url: `${[[ entity_upper_snake ]]_BASE_URL}/${id}`,
+            method: "put",
+            data,
+        });
+    },
+    /** 批量删除[[ business_name ]]，多个以英文逗号(,)分割 */
+     deleteByIds(ids: string) {
+        return request({
+            url: `${[[ entity_upper_snake ]]_BASE_URL}/${ids}`,
+            method: "delete",
+        });
+    }
+}
+
+export default [[ entity_name ]]API;
+
+export * from "./types";

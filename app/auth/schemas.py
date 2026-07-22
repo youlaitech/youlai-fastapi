@@ -95,4 +95,4 @@ class AuthenticationToken(BaseModel):
 class CaptchaResult(BaseModel):
     """验证码返回。"""
     captchaId: str = Field(description="验证码ID")
-    captchaImg: str = Field(description="base64 编码的验证码图片")
+    captchaBase64: str = Field(description="base64 编码的验证码图片")

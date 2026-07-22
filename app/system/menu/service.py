@@ -81,11 +81,28 @@ class MenuService:
 
     async def create(self, form: MenuCreate) -> MenuVO:
         """创建菜单并回填 tree_path 祖先路径；目录/外链的 component 取值规则见内联注释。"""
-        # 目录类型(C)的 component 固定为 Layout 布局容器；外链类型(E)且非 iframe 内嵌时，
-        # component 置空，前端按外链在新标签页打开而非加载组件
+        # 一级目录的 routePath 不以 / 开头时自动补前缀
+        if form.type == "C" and form.parentId == 0 and form.routePath and not form.routePath.startswith("/"):
+            form.routePath = "/" + form.routePath
+
+        is_embedded = form.type == "E" and form.component == "iframe"
+        needs_route_name = form.type == "M" or is_embedded
+
+        # 路由名称唯一性校验（仅菜单和内嵌外链）
+        if needs_route_name and form.routeName:
+            exists = await self.db.execute(
+                select(SysMenu.id).where(SysMenu.route_name == form.routeName)
+            )
+            if exists.scalar() is not None:
+                raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="路由名称已存在")
+
+        # C/E 类型清空路由名称（仅菜单和内嵌外链需要 routeName）
+        route_name = form.routeName if needs_route_name else None
+
+        # 目录类型(C)的 component 固定为 Layout；外链新标签页 component 置空
         if form.type == "C":
             component = "Layout"
-        elif form.type == "E" and form.component != "iframe":
+        elif form.type == "E" and not is_embedded:
             component = None
         else:
             component = form.component
@@ -94,7 +111,7 @@ class MenuService:
             tree_path="",
             name=form.name,
             type=form.type,
-            route_name=form.routeName,
+            route_name=route_name,
             route_path=form.routePath,
             component=component,
             external_url=form.externalUrl,
@@ -127,16 +144,36 @@ class MenuService:
         if menu is None:
             raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="菜单不存在")
 
+        # 父级菜单不能指向自身
+        if form.parentId == form.id:
+            raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="父级菜单不能为当前菜单")
+
+        # 一级目录的 routePath 不以 / 开头时自动补前缀
+        if form.type == "C" and form.parentId == 0 and form.routePath and not form.routePath.startswith("/"):
+            form.routePath = "/" + form.routePath
+
+        is_embedded = form.type == "E" and form.component == "iframe"
+        needs_route_name = form.type == "M" or is_embedded
+
+        # 路由名称唯一性校验（排除自身）
+        if needs_route_name and form.routeName:
+            exists = await self.db.execute(
+                select(SysMenu.id).where(SysMenu.route_name == form.routeName, SysMenu.id != form.id)
+            )
+            if exists.scalar() is not None:
+                raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="路由名称已存在")
+
+        # C/E 类型清空路由名称
+        route_name = form.routeName if needs_route_name else None
+
         menu.parent_id = form.parentId
         menu.name = form.name
         menu.type = form.type
-        menu.route_name = form.routeName
+        menu.route_name = route_name
         menu.route_path = form.routePath
-        # 目录类型(C)的 component 固定为 Layout 布局容器；外链类型(E)且非 iframe 内嵌时，
-        # component 置空，前端按外链在新标签页打开而非加载组件
         if form.type == "C":
             menu.component = "Layout"
-        elif form.type == "E" and form.component != "iframe":
+        elif form.type == "E" and not is_embedded:
             menu.component = None
         else:
             menu.component = form.component
@@ -211,13 +248,34 @@ class MenuService:
         )
 
     def _to_route(self, m: SysMenu) -> RouteVO:
-        meta = {"title": m.name, "icon": m.icon, "hidden": m.visible == 0, "keepAlive": m.keep_alive == 1}
-        if m.type == "E":  # 外链
-            meta["isExt"] = True
+        is_external = m.type == "E"
+        is_embedded = is_external and m.component == "iframe"
+        # 外链（非内嵌 iframe）：路径用 external_url（http 开头，前端新标签打开）
+        # 内嵌 iframe：路径用 route_path，component 固定 iframe
+        if is_external and not is_embedded:
+            path = m.external_url or m.route_path or ""
+            comp = None
+        elif is_embedded:
+            path = m.route_path or ""
+            comp = "iframe"
+        else:
+            path = m.route_path or ""
+            comp = "Layout" if m.type == "C" else m.component
+
+        meta = {
+            "title": m.name,
+            "icon": m.icon,
+            "hidden": m.visible != 1,
+            "alwaysShow": m.always_show == 1 if m.always_show is not None else False,
+            "keepAlive": m.keep_alive == 1 if m.keep_alive is not None else False,
+        }
+        if is_embedded and m.external_url:
+            meta["externalUrl"] = m.external_url
+
         return RouteVO(
             name=m.route_name or "",
-            path=m.route_path or "",
-            component=m.component if m.type != "C" else "Layout",
+            path=path,
+            component=comp,
             redirect=m.redirect,
             meta=meta,
         )
