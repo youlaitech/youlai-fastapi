@@ -44,13 +44,35 @@ class DeptService:
         return self._to_vo(dept)
 
     async def get_options(self) -> list[dict]:
-        """返回部门下拉选项（id/名称/父id），仅含启用部门。"""
+        """返回部门下拉选项树（递归嵌套 children），仅含启用部门。"""
         rows = await self.db.execute(
             select(SysDept.id, SysDept.parent_id, SysDept.name)
             .where(SysDept.is_deleted == 0, SysDept.status == 1)
             .order_by(SysDept.sort.asc())
         )
-        return [{"value": r.id, "label": r.name, "parentId": r.parent_id} for r in rows]
+        depts = [{"id": r.id, "parentId": r.parent_id, "name": r.name} for r in rows]
+        if not depts:
+            return []
+
+        dept_ids = {d["id"] for d in depts}
+        parent_ids = {d["parentId"] for d in depts}
+        root_ids = parent_ids - dept_ids  # parentId 不在当前集合中的为根节点
+
+        def _build(parent_id: int) -> list[dict]:
+            tree = []
+            for d in depts:
+                if d["parentId"] == parent_id:
+                    node = {"value": d["id"], "label": d["name"]}
+                    children = _build(d["id"])
+                    if children:
+                        node["children"] = children
+                    tree.append(node)
+            return tree
+
+        result = []
+        for root_id in sorted(root_ids):
+            result.extend(_build(root_id))
+        return result
 
     async def get_dept_form(self, dept_id: int) -> DeptUpdate:
         """获取部门编辑表单数据。"""
