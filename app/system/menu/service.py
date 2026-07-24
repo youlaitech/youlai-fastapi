@@ -39,11 +39,34 @@ class MenuService:
         return self._to_vo(menu)
 
     async def get_options(self, only_parent: bool = False) -> list[dict]:
+        """返回菜单下拉选项树（递归嵌套 children）。"""
         stmt = select(SysMenu.id, SysMenu.parent_id, SysMenu.name, SysMenu.type).order_by(SysMenu.sort.asc())
         if only_parent:
             stmt = stmt.where(SysMenu.parent_id == 0)
         rows = await self.db.execute(stmt)
-        return [{"value": r.id, "label": r.name, "parentId": r.parent_id, "type": r.type} for r in rows]
+        menus = [{"id": r.id, "parentId": r.parent_id, "name": r.name} for r in rows]
+        if not menus:
+            return []
+
+        menu_ids = {m["id"] for m in menus}
+        parent_ids = {m["parentId"] for m in menus}
+        root_ids = parent_ids - menu_ids
+
+        def _build(parent_id: int) -> list[dict]:
+            tree = []
+            for m in menus:
+                if m["parentId"] == parent_id:
+                    node = {"value": m["id"], "label": m["name"]}
+                    children = _build(m["id"])
+                    if children:
+                        node["children"] = children
+                    tree.append(node)
+            return tree
+
+        result = []
+        for root_id in sorted(root_ids):
+            result.extend(_build(root_id))
+        return result
 
     async def get_menu_form(self, menu_id: int) -> MenuUpdate:
         """获取菜单编辑表单数据。"""
