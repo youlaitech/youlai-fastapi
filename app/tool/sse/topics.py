@@ -1,7 +1,7 @@
 """SSE 事件名常量。"""
 
 # 在线用户数，data 为裸 int
-ONLINE_COUNT = "online-count"
+ONLINE_COUNT = "online-users"
 
 # 字典变更，data 为 {"dictCode": str, "timestamp": int}
 DICT = "dict"

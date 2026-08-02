@@ -43,18 +43,24 @@ class RoleMenuForm(BaseModel):
     menuIds: list[BigId] = Field(default_factory=list)
 
 
-class RoleVO(BaseModel):
+class RolePageVO(BaseModel):
+    """角色分页列表响应体。"""
     id: BigId | None = None
     name: str = ""
     code: str = ""
-    sort: int = 0
     status: int = 1
+    sort: int | None = None
     dataScope: int | None = None
-    menuIds: list[BigId] = Field(default_factory=list)
-    deptIds: list[BigId] = Field(default_factory=list)
+    dataScopeLabel: str = ""
     createTime: str | None = None
     updateTime: str | None = None
     model_config = {"from_attributes": True}
+
+
+class RoleVO(RolePageVO):
+    """角色详情视图对象，含菜单/部门关联 id。"""
+    menuIds: list[BigId] = Field(default_factory=list)
+    deptIds: list[BigId] = Field(default_factory=list)
 
 
 class RoleForm(RoleUpdate):

@@ -12,7 +12,7 @@ from app.auth.token import get_token_manager
 from app.exceptions import BusinessException
 from app.response import ResultCode
 from app.system.role.models import SysRole, SysRoleDept, SysRoleMenu
-from app.system.role.schemas import RoleCreate, RoleOptionVO, RoleQuery, RoleUpdate, RoleVO
+from app.system.role.schemas import RoleCreate, RoleOptionVO, RolePageVO, RoleQuery, RoleUpdate, RoleVO
 
 
 class RoleService:
@@ -38,7 +38,7 @@ class RoleService:
             select(SysRole).where(*conditions).order_by(SysRole.sort.asc()).offset(offset).limit(query.pageSize)
         )
         roles = rows.scalars().all()
-        vo_list = [await self._to_vo(r) for r in roles]
+        vo_list = [self._to_page_vo(r) for r in roles]
         return PageResult(records=vo_list, total=total, pageNum=query.pageNum, pageSize=query.pageSize)
 
     async def get_by_id(self, role_id: int) -> RoleVO:
@@ -198,13 +198,25 @@ class RoleService:
             menuIds=menu_ids, deptIds=dept_ids,
         )
 
+    def _to_page_vo(self, role: SysRole) -> RolePageVO:
+        """ORM 对象转分页视图对象，仅含基础字段，不查关联表。"""
+        return RolePageVO(
+            id=role.id, name=role.name, code=role.code,
+            sort=role.sort, status=role.status,
+            dataScope=role.data_scope,
+            dataScopeLabel=DataScopeEnum.get_label(role.data_scope),
+            createTime=str(role.create_time) if role.create_time else None,
+            updateTime=str(role.update_time) if role.update_time else None,
+        )
+
     async def _to_vo(self, role: SysRole) -> RoleVO:
-        """ORM 对象转视图对象（RoleVO），附带菜单/部门 id。"""
+        """ORM 对象转详情视图对象，附带菜单/部门关联 id。"""
         menu_ids = await self.get_role_menu_ids(role.id)
         dept_ids = await self.get_role_dept_ids(role.id)
         return RoleVO(
             id=role.id, name=role.name, code=role.code, sort=role.sort,
             status=role.status, dataScope=role.data_scope,
+            dataScopeLabel=DataScopeEnum.get_label(role.data_scope),
             menuIds=menu_ids, deptIds=dept_ids,
             createTime=str(role.create_time) if role.create_time else None,
             updateTime=str(role.update_time) if role.update_time else None,
