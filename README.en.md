@@ -158,7 +158,7 @@
 
    # source .venv/bin/activate  # Linux/Mac
 
-   pip install fastapi[standard] uvicorn[standard] sqlalchemy[asyncio] asyncpg pydantic[email] pydantic-settings pyjwt[crypto] bcrypt python-multipart redis[hiredis] orjson loguru fastapi-pagination sse-starlette pillow openpyxl minio slowapi
+   pip install fastapi[standard] uvicorn[standard] sqlalchemy[asyncio] asyncpg pydantic[email] pydantic-settings pyjwt[crypto] bcrypt python-multipart redis[hiredis] orjson loguru fastapi-pagination sse-starlette pillow openpyxl boto3 slowapi
 
    ```
 
@@ -212,7 +212,7 @@ Default credentials: `admin` / `123456`
 
 | loguru | — | Logging |
 
-| MinIO | — | Object storage |
+| boto3 | — | S3 (RustFS) object storage |
 
 | slowapi | — | Rate limiting |
 
@@ -260,7 +260,7 @@ youlai-fastapi/
 
 │   ├── captcha/             # image captcha
 
-│   ├── file/                # file service (MinIO/local)
+│   ├── file/                # file service (S3/RustFS/local)
 
 │   ├── codegen/             # code generator
 

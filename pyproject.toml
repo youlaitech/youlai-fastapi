@@ -1,7 +1,7 @@
 [project]
 name = "youlai-fastapi"
 version = "1.1.0"
-description = "vue3-element-admin 的 FastAPI 后端，基于 FastAPI + SQLAlchemy + MySQL/Redis 构建"
+description = "vue3-element-admin 的 FastAPI 后端，基于 FastAPI + SQLAlchemy + PostgreSQL/Redis 构建"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
@@ -46,11 +46,11 @@ dependencies = [
     # SSE
     "sse-starlette>=2.0.0,<3",
     # Captcha
-    "pillow>=10.4.0,<11",
+    "pillow>=10.4.0,<12",
     # Excel
     "openpyxl>=3.1.0,<4",
-    # File storage
-    "minio>=7.2.0,<8",
+    # File storage (S3 / RustFS)
+    "boto3>=1.34.0,<2",
     # Task queue
     # "arq>=0.26.0,<1",
     # Rate limiting

@@ -4,19 +4,23 @@ services:
       context: .
       dockerfile: Dockerfile
     ports: ["8000:8000"]
-    depends_on: [postgres, redis]
+    depends_on: [postgres, redis, rustfs]
     environment:
-      DATABASE_URL: postgresql+asyncpg://youlai:Youlai%402026@postgres:5432/youlai_admin
+      DATABASE_URL: postgresql+asyncpg://postgres@postgres:5432/youlai_admin
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: SecretKey012345678901234567890123456789
+      S3_ENDPOINT: rustfs:9000
+      S3_ACCESS_KEY: rustfs-admin
+      S3_SECRET_KEY: rustfs-admin
+      S3_BUCKET: public
+      S3_SECURE: "false"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 
   postgres:
     image: postgres:16-alpine
+    # 使用 PostgreSQL 官方镜像默认值：用户名 postgres，密码为空
     environment:
       POSTGRES_DB: youlai_admin
-      POSTGRES_USER: youlai
-      POSTGRES_PASSWORD: Youlai@2026
     ports: ["5432:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
 
@@ -24,15 +28,16 @@ services:
     image: redis:7-alpine
     ports: ["6379:6379"]
 
-  minio:
-    image: minio/minio
+  # RustFS：S3 协议兼容的对象存储服务（MinIO 停止维护后的开源替代）
+  rustfs:
+    image: rustfs/rustfs:latest
     ports: ["9000:9000", "9001:9001"]
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    volumes: ["minio_data:/data"]
+      RUSTFS_ACCESS_KEY: rustfs-admin
+      RUSTFS_SECRET_KEY: rustfs-admin
+    volumes: ["rustfs_data:/data"]
 
 volumes:
   pgdata:
-  minio_data:
+  rustfs_data:

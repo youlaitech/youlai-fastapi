@@ -84,9 +84,11 @@
    python -m venv .venv
    .venv\Scripts\activate      # Windows
    # source .venv/bin/activate # Linux/Mac
+   # 安装运行依赖（fastapi / sqlalchemy / redis 等），启动服务必需
    pip install -e .
+   # 如需运行测试或代码检查，再安装开发依赖（pytest / ruff / mypy 等）
+   # pip install -e ".[dev]"
    ```
-   > pytest / ruff 等开发工具单独装：`pip install -e ".[dev]"`
 
 3. 创建并初始化数据库：
    ```bash
