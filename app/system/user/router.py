@@ -17,7 +17,8 @@ from app.dependencies import get_current_user, require_perm
 from app.auth.schemas import SysUserDetails
 from app.response import Result
 from app.system.user.schemas import (
-    EmailUpdateForm, ExcelResultVO, MobileUpdateForm, PasswordUpdateForm,
+    EmailUpdateForm, ExcelResultVO, MobileUpdateForm, PasswordResetForm,
+    PasswordUpdateForm,
     PasswordVerifyForm, UserCreate, UserProfileForm, UserQuery,
     UserUpdate,
 )
@@ -281,9 +282,9 @@ async def update_user_status(
 async def reset_user_password(
     request: Request,
     user_id: int,
-    password: str,
+    form: PasswordResetForm,
     user: SysUserDetails = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await UserService(db).reset_password(user_id, password)
+    await UserService(db).reset_password(user_id, form.password)
     return Result(data=None)

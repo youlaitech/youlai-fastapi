@@ -95,6 +95,11 @@ class PasswordVerifyForm(BaseModel):
     password: str = Field(..., min_length=6, max_length=100)
 
 
+class PasswordResetForm(BaseModel):
+    """重置密码表单。"""
+    password: str = Field(..., min_length=6, max_length=100)
+
+
 class MobileUpdateForm(BaseModel):
     """绑定/更换手机号。"""
     mobile: str = Field(..., pattern=r"^1[3-9]\d{9}$")
