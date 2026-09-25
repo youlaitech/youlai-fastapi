@@ -34,4 +34,5 @@ class LogModuleEnum(IntEnum):
     NOTICE = 9
     LOG = 10
     CODEGEN = 11
+    FORM = 12
     OTHER = 99

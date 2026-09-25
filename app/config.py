@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_TTL: int = 604800
     ALLOW_MULTI_LOGIN: bool = True
 
+    # ── AI 对话（OpenAI 兼容协议，默认关闭）──
+    AI_ENABLED: bool = False
+    AI_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    AI_API_KEY: str = ""
+    AI_MODEL: str = "qwen-plus"
+
     # ── S3（RustFS） ──
     S3_ENDPOINT: str = "111.229.83.153:9000"
     S3_ACCESS_KEY: str = "rustfs-admin"

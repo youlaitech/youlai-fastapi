@@ -18,7 +18,8 @@ class MenuCreate(BaseModel):
     component: str | None = None
     externalUrl: str | None = Field(default=None)
     perm: str | None = None
-    alwaysShow: int = Field(default=0)
+    generateCrudButtons: bool = Field(default=False, description="新增页面菜单时是否生成增删改查按钮")
+    buttonPermPrefix: str | None = Field(default=None, description="按钮权限标识前缀，如 sys:user")
     keepAlive: int = Field(default=0)
     visible: int = Field(default=1)
     sort: int = Field(default=0)
@@ -50,7 +51,6 @@ class MenuVO(BaseModel):
     component: str | None = None
     externalUrl: str | None = None
     perm: str | None = None
-    alwaysShow: int | None = 0
     keepAlive: int | None = 0
     visible: int | None = 1
     sort: int | None = 0

@@ -20,7 +20,6 @@ class SysMenu(Base, BaseIdMixin):
     component: Mapped[str | None] = mapped_column(String(128), comment="组件路径")
     external_url: Mapped[str | None] = mapped_column(String(512), comment="外链地址")
     perm: Mapped[str | None] = mapped_column(String(128), comment="权限标识")
-    always_show: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0", comment="目录-只有一个子路由是否始终显示")
     keep_alive: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0", comment="菜单-是否开启页面缓存")
     visible: Mapped[int] = mapped_column(SmallInteger, default=1, server_default="1", comment="显示状态 1-显示 0-隐藏")
     sort: Mapped[int] = mapped_column(Integer, default=0, server_default="0", comment="排序")

@@ -26,10 +26,10 @@ async def get_menu_tree(
 
 @router.get("/options", summary="菜单下拉选项", dependencies=[Depends(require_perm())])
 async def get_menu_options(
-    onlyParent: bool = Query(default=False),
+    types: str | None = Query(default=None, description="菜单类型过滤，逗号分隔如 C,M"),
     db: AsyncSession = Depends(get_db),
 ):
-    options = await MenuService(db).get_options(onlyParent)
+    options = await MenuService(db).get_options([t.strip() for t in (types or "").split(",") if t.strip()])
     return Result(data=options)
 
 

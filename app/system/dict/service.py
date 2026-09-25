@@ -89,9 +89,14 @@ class DictService:
         for did in id_list:
             obj = await self.db.get(SysDict, did)
             if obj:
-                await self.db.execute(
-                    delete(SysDictItem).where(SysDictItem.dict_code == obj.dict_code)
+                # 级联逻辑删除字典项：保留历史数据便于审计，查询侧按 is_deleted=0 过滤
+                rows = await self.db.execute(
+                    select(SysDictItem).where(
+                        SysDictItem.dict_code == obj.dict_code, SysDictItem.is_deleted == 0
+                    )
                 )
+                for item in rows.scalars().all():
+                    item.is_deleted = 1
                 obj.is_deleted = 1
         await self.db.flush()
         return len(id_list)
@@ -99,7 +104,9 @@ class DictService:
     async def get_items(self, dict_code: str) -> list[DictItemVO]:
         """获取指定字典类型下的全部字典项（按 sort 排序）。"""
         rows = await self.db.execute(
-            select(SysDictItem).where(SysDictItem.dict_code == dict_code).order_by(SysDictItem.sort.asc())
+            select(SysDictItem)
+            .where(SysDictItem.dict_code == dict_code, SysDictItem.is_deleted == 0)
+            .order_by(SysDictItem.sort.asc(), SysDictItem.id.asc())
         )
         return [DictItemVO.model_validate(r, from_attributes=True) for r in rows.scalars().all()]
 
@@ -107,26 +114,50 @@ class DictService:
         """返回字典项下拉选项（仅启用项）。"""
         rows = await self.db.execute(
             select(SysDictItem).where(
-                SysDictItem.dict_code == dict_code, SysDictItem.status == 1
-            ).order_by(SysDictItem.sort.asc())
+                SysDictItem.dict_code == dict_code,
+                SysDictItem.status == 1,
+                SysDictItem.is_deleted == 0,
+            ).order_by(SysDictItem.sort.asc(), SysDictItem.id.asc())
         )
         return [DictItemOptionVO.model_validate(r, from_attributes=True) for r in rows.scalars().all()]
 
     async def get_item_form(self, item_id: int) -> DictItemUpdate:
         """获取字典项编辑表单数据。"""
-        obj = await self.db.get(SysDictItem, item_id)
-        if obj is None:
-            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="字典项不存在")
+        obj = await self._get_item(item_id)
         return DictItemUpdate.model_validate(obj, from_attributes=True)
 
     async def get_item_by_id(self, item_id: int) -> DictItemVO:
         """根据 id 获取字典项详情。"""
-        obj = await self.db.get(SysDictItem, item_id)
-        if obj is None:
-            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="字典项不存在")
+        obj = await self._get_item(item_id)
         return DictItemVO.model_validate(obj, from_attributes=True)
 
+    async def _get_item(self, item_id: int) -> SysDictItem:
+        """按 ID 取未删除的字典项。"""
+        rows = await self.db.execute(
+            select(SysDictItem).where(SysDictItem.id == item_id, SysDictItem.is_deleted == 0)
+        )
+        obj = rows.scalars().first()
+        if obj is None:
+            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="字典项不存在")
+        return obj
+
+    async def _check_value_unique(self, dict_code: str, value: str, exclude_id: int | None = None) -> None:
+        """校验同一字典下字典项值唯一，已删除项不参与判定。"""
+        stmt = select(SysDictItem.id).where(
+            SysDictItem.dict_code == dict_code,
+            SysDictItem.value == value,
+            SysDictItem.is_deleted == 0,
+        )
+        if exclude_id is not None:
+            stmt = stmt.where(SysDictItem.id != exclude_id)
+        rows = await self.db.execute(stmt)
+        if rows.scalars().first() is not None:
+            raise BusinessException(
+                code=ResultCode.DUPLICATE_KEY, msg=f"字典项值 '{value}' 在字典 '{dict_code}' 中已存在"
+            )
+
     async def create_item(self, form: DictItemCreate) -> DictItemVO:
+        await self._check_value_unique(form.dictCode, form.value)
         obj = SysDictItem(
             dict_code=form.dictCode, value=form.value, label=form.label,
             tag_type=form.tagType, status=form.status, sort=form.sort, remark=form.remark,
@@ -136,9 +167,8 @@ class DictService:
 
     async def update_item(self, form: DictItemUpdate) -> DictItemVO:
         """更新字典项。"""
-        obj = await self.db.get(SysDictItem, form.id)
-        if obj is None:
-            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="字典项不存在")
+        obj = await self._get_item(form.id)
+        await self._check_value_unique(form.dictCode, form.value, exclude_id=form.id)
         obj.dict_code = form.dictCode
         obj.value = form.value
         obj.label = form.label
@@ -150,10 +180,14 @@ class DictService:
         return DictItemVO.model_validate(obj, from_attributes=True)
 
     async def delete_items(self, ids: str) -> int:
-        """批量删除字典项（物理删除）。"""
+        """批量逻辑删除字典项，保留历史数据。"""
         id_list = [int(x) for x in ids.split(",") if x.strip()]
-        for iid in id_list:
-            obj = await self.db.get(SysDictItem, iid)
-            if obj: await self.db.delete(obj)
+        rows = await self.db.execute(
+            select(SysDictItem).where(
+                SysDictItem.id.in_(id_list), SysDictItem.is_deleted == 0
+            )
+        )
+        for obj in rows.scalars().all():
+            obj.is_deleted = 1
         await self.db.flush()
         return len(id_list)

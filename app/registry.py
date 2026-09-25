@@ -7,6 +7,7 @@ Base.metadata 收集所有表。`import app.registry` 即触发全部注册。
 from app.system.config import models as _config_models  # noqa: F401
 from app.system.dept import models as _dept_models  # noqa: F401
 from app.system.dict import models as _dict_models  # noqa: F401
+from app.system.form import models as _form_models  # noqa: F401
 from app.system.log import models as _log_models  # noqa: F401
 from app.system.menu import models as _menu_models  # noqa: F401
 from app.system.notice import models as _notice_models  # noqa: F401

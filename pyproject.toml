@@ -1,6 +1,6 @@
 [project]
 name = "youlai-fastapi"
-version = "1.1.0"
+version = "1.2.0"
 description = "vue3-element-admin 的 FastAPI 后端，基于 FastAPI + SQLAlchemy + PostgreSQL/Redis 构建"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -37,6 +37,8 @@ dependencies = [
     "python-multipart>=0.0.9,<1",
     # Cache
     "redis[hiredis]>=5.0.0,<6",
+    # HTTP 客户端（AI 对话调用 OpenAI 兼容接口）
+    "httpx>=0.27.0,<1",
     # JSON
     "orjson>=3.10.0,<4",
     # Logging

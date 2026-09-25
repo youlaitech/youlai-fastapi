@@ -38,11 +38,11 @@ class MenuService:
             raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="菜单不存在")
         return self._to_vo(menu)
 
-    async def get_options(self, only_parent: bool = False) -> list[dict]:
-        """返回菜单下拉选项树（递归嵌套 children）。"""
+    async def get_options(self, types: list[str] | None = None) -> list[dict]:
+        """返回菜单下拉选项树（递归嵌套 children），可按菜单类型过滤。"""
         stmt = select(SysMenu.id, SysMenu.parent_id, SysMenu.name, SysMenu.type).order_by(SysMenu.sort.asc())
-        if only_parent:
-            stmt = stmt.where(SysMenu.parent_id == 0)
+        if types:
+            stmt = stmt.where(SysMenu.type.in_(types))
         rows = await self.db.execute(stmt)
         menus = [{"id": r.id, "parentId": r.parent_id, "name": r.name} for r in rows]
         if not menus:
@@ -84,7 +84,6 @@ class MenuService:
             component=menu.component,
             externalUrl=menu.external_url,
             perm=menu.perm,
-            alwaysShow=menu.always_show,
             keepAlive=menu.keep_alive,
             visible=menu.visible,
             sort=menu.sort,
@@ -104,6 +103,13 @@ class MenuService:
 
     async def create(self, form: MenuCreate) -> MenuVO:
         """创建菜单并回填 tree_path 祖先路径；目录/外链的 component 取值规则见内联注释。"""
+        # 父级层级校验：按钮只能挂在菜单下，其他类型只能挂在顶级或目录下
+        await self._check_parent(form.type, form.parentId)
+
+        # 新增菜单未指定排序时排到同级末尾
+        if not form.sort:
+            form.sort = await self._next_sort(form.parentId)
+
         # 一级目录的 routePath 不以 / 开头时自动补前缀
         if form.type == "C" and form.parentId == 0 and form.routePath and not form.routePath.startswith("/"):
             form.routePath = "/" + form.routePath
@@ -139,7 +145,6 @@ class MenuService:
             component=component,
             external_url=form.externalUrl,
             perm=form.perm,
-            always_show=form.alwaysShow,
             keep_alive=form.keepAlive,
             visible=form.visible,
             sort=form.sort,
@@ -157,6 +162,10 @@ class MenuService:
         else:
             menu.tree_path = "0"
         await self.db.flush()
+
+        # 新增页面菜单时按需生成增删改查按钮
+        if form.generateCrudButtons and form.buttonPermPrefix and form.buttonPermPrefix.strip():
+            await self._create_crud_buttons(menu, form.buttonPermPrefix.strip())
 
         logger.info(f"Menu created: {menu.name}")
         return self._to_vo(menu)
@@ -202,7 +211,6 @@ class MenuService:
             menu.component = form.component
         menu.external_url = form.externalUrl
         menu.perm = form.perm
-        menu.always_show = form.alwaysShow
         menu.keep_alive = form.keepAlive
         menu.visible = form.visible
         menu.sort = form.sort
@@ -260,13 +268,61 @@ class MenuService:
         node_list = [self._to_route_with_parent(m) for m in menus]
         return self._build_route_tree(node_list)
 
+    async def _check_parent(self, menu_type: str | None, parent_id: int | None) -> None:
+        """校验上级菜单层级：按钮只能挂在菜单下，其他类型只能挂在顶级或目录下。"""
+        if not parent_id or parent_id == 0:
+            if menu_type == "B":
+                raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="按钮权限只能挂在菜单下")
+            return
+
+        parent = await self.db.get(SysMenu, parent_id)
+        if parent is None:
+            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="上级菜单不存在")
+
+        parent_is_menu = parent.type == "M"
+        if menu_type == "B" and not parent_is_menu:
+            raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="按钮权限只能挂在菜单下")
+        if menu_type != "B" and parent_is_menu:
+            raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="菜单下只能挂按钮权限")
+
+    async def _next_sort(self, parent_id: int | None) -> int:
+        """同级菜单的最大排序 + 1。"""
+        rows = await self.db.execute(
+            select(SysMenu.sort)
+            .where(SysMenu.parent_id == (parent_id or 0))
+            .order_by(SysMenu.sort.desc())
+            .limit(1)
+        )
+        max_sort = rows.scalar()
+        return (max_sort or 0) + 1
+
+    async def _create_crud_buttons(self, menu: SysMenu, perm_prefix: str) -> None:
+        """生成增删改查按钮权限。"""
+        names = ["查询", "新增", "修改", "删除"]
+        actions = ["list", "create", "update", "delete"]
+        # 树路径记录祖先链，等于所属菜单的树路径加上所属菜单ID，删除菜单时据此级联
+        button_tree_path = f"{menu.tree_path},{menu.id}" if menu.tree_path else str(menu.id)
+
+        for index, (name, action) in enumerate(zip(names, actions)):
+            self.db.add(SysMenu(
+                parent_id=menu.id,
+                tree_path=button_tree_path,
+                name=name,
+                type="B",
+                perm=f"{perm_prefix}:{action}",
+                visible=1,
+                sort=index + 1,
+                create_time=datetime.now(),
+            ))
+        await self.db.flush()
+
     def _to_vo(self, m: SysMenu) -> MenuVO:
         """ORM 对象转菜单视图对象（MenuVO）。"""
         return MenuVO(
             id=m.id, parentId=m.parent_id, name=m.name, type=m.type,
             routeName=m.route_name, routePath=m.route_path, component=m.component,
             externalUrl=m.external_url, perm=m.perm,
-            alwaysShow=m.always_show, keepAlive=m.keep_alive, visible=m.visible,
+            keepAlive=m.keep_alive, visible=m.visible,
             sort=m.sort, icon=m.icon, redirect=m.redirect, params=m.params,
         )
 
@@ -289,7 +345,6 @@ class MenuService:
             "title": m.name,
             "icon": m.icon,
             "hidden": m.visible != 1,
-            "alwaysShow": m.always_show == 1 if m.always_show is not None else False,
             "keepAlive": m.keep_alive == 1 if m.keep_alive is not None else False,
         }
         if is_embedded and m.external_url:

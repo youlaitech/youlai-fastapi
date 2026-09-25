@@ -24,7 +24,7 @@ class SysDict(Base, BaseIdMixin, TimestampMixin, SoftDeleteMixin):
     )
 
 
-class SysDictItem(Base, BaseIdMixin):
+class SysDictItem(Base, BaseIdMixin, SoftDeleteMixin):
     __tablename__ = "sys_dict_item"
 
     dict_code: Mapped[str | None] = mapped_column(String(50), comment="关联字典编码")
