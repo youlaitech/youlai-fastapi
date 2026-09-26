@@ -17,7 +17,7 @@ class GenTable(Base, BaseIdMixin, TimestampMixin, SoftDeleteMixin):
     author: Mapped[str] = mapped_column(String(50), comment="作者")
     parent_menu_id: Mapped[int | None] = mapped_column(BigInteger, comment="上级菜单ID")
     remove_table_prefix: Mapped[str | None] = mapped_column(String(20), comment="要移除的表前缀")
-    page_type: Mapped[str | None] = mapped_column(String(20), comment="页面类型(classic/curd)")
+    page_type: Mapped[str | None] = mapped_column(String(20), comment="页面类型(classic/crud)")
 
 
 class GenTableColumn(Base, BaseIdMixin, TimestampMixin):
