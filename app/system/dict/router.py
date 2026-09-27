@@ -14,7 +14,7 @@ from app.system.log.operation_log import operation_log
 from app.tool.sse.manager import broadcast
 from app.tool.sse.topics import DICT
 from app.system.dict.schemas import (
-    DictCreate, DictItemCreate, DictItemUpdate, DictItemVO, DictUpdate,
+    DictCreate, DictItemCreate, DictItemQuery, DictItemUpdate, DictItemVO, DictUpdate,
 )
 from app.system.dict.service import DictService
 
@@ -82,9 +82,16 @@ async def delete_dict(
     return Result(data=None)
 
 
-@router.get("/{dict_code}/items", summary="字典项列表")
-async def get_dict_items(dict_code: str, db: AsyncSession = Depends(get_db)):
-    return Result(data=await DictService(db).get_items(dict_code))
+@router.get("/{dict_code}/items", summary="字典项分页列表")
+async def get_dict_items(
+    dict_code: str,
+    pageNum: int = Query(default=1, ge=1),
+    pageSize: int = Query(default=10, ge=1, le=100),
+    keywords: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    query = DictItemQuery(pageNum=pageNum, pageSize=pageSize, keywords=keywords)
+    return Result(data=await DictService(db).get_item_page(dict_code, query))
 
 
 @router.get("/{dict_code}/items/options", summary="字典项下拉列表")

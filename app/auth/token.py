@@ -272,7 +272,6 @@ async def get_token_manager() -> TokenManager:
     global _token_manager
     if _token_manager is None:
         async with _token_manager_lock:
-            # double-check
             if _token_manager is None:
                 from app.redis import get_redis
 

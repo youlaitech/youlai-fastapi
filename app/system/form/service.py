@@ -2,13 +2,11 @@
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
 
-import httpx
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.ai import chat, load_prompt
 from app.exceptions import BusinessException
 from app.redis import get_redis
 from app.response import ResultCode
@@ -29,7 +27,6 @@ FORM_ADMIN_CATALOG_NAME = "动态表单"
 PUBLIC_SUBMIT_LIMIT = 10
 RENDER_CACHE_TTL = 1800
 SYSTEM_PROMPT_PATH = "form/system.md"
-PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
 
 class FormService:
@@ -609,46 +606,5 @@ class FormService:
 
     async def ai_generate_rule(self, description: str) -> list:
         """用 AI 把需求描述转成 form-create 规则，产出经结构校验后才返回。"""
-        content = await self._chat(self._load_prompt(SYSTEM_PROMPT_PATH), f"需求描述：\n{description}")
+        content = await chat(load_prompt(SYSTEM_PROMPT_PATH), f"需求描述：\n{description}")
         return self.validate_rule(content)
-
-    @staticmethod
-    def _load_prompt(name: str) -> str:
-        path = PROMPTS_DIR / name
-        if not path.exists():
-            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg=f"提示词不存在：{name}")
-        return path.read_text(encoding="utf-8").strip()
-
-    @staticmethod
-    async def _chat(system_prompt: str, user_prompt: str) -> str:
-        if not settings.AI_ENABLED:
-            raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="AI 功能未开启，请配置 AI_ENABLED 与 AI_API_KEY")
-
-        url = f"{settings.AI_BASE_URL.rstrip('/')}/chat/completions"
-        payload = {
-            "model": settings.AI_MODEL,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "response_format": {"type": "json_object"},
-        }
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(
-                url, json=payload, headers={"Authorization": f"Bearer {settings.AI_API_KEY}"}
-            )
-        if response.status_code != 200:
-            logger.error("AI 调用失败 %s: %s", response.status_code, response.text)
-            raise BusinessException(code=ResultCode.OPERATE_DENIED, msg=f"AI 调用失败：{response.status_code}")
-
-        content = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
-        return FormService._strip_code_fence(content)
-
-    @staticmethod
-    def _strip_code_fence(content: str) -> str:
-        """去掉模型输出里可能包裹的 json 代码围栏。"""
-        text = (content or "").strip()
-        if not text.startswith("```"):
-            return text
-        start, end = text.find("\n"), text.rfind("```")
-        return text[start + 1:end].strip() if start != -1 and end > start else text

@@ -2,15 +2,40 @@
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
+from app.ai import chat_json, load_prompt
 from app.exceptions import BusinessException
 from app.response import ResultCode
 from app.system.menu.models import SysMenu
 from app.system.role.models import SysRole, SysRoleMenu
-from app.system.menu.schemas import MenuCreate, MenuUpdate, MenuVO, RouteVO
+from app.system.menu.schemas import MenuAiFillForm, MenuAiFillVO, MenuCreate, MenuUpdate, MenuVO, RouteVO
+
+SYSTEM_PROMPT_PATH = "menu/system.md"
+# 同级菜单取样条数，样本只用于让模型沿用既有命名风格
+SIBLING_SAMPLE_LIMIT = 10
+MENU_TYPE_LABELS = {"C": "目录", "M": "菜单", "E": "外链", "B": "按钮"}
+
+
+def _menu_type_label(menu_type: str | None) -> str:
+    """菜单类型取中文名称，无匹配时沿用原值。"""
+    if not menu_type:
+        return "未指定"
+    return MENU_TYPE_LABELS.get(menu_type, menu_type)
+
+
+def normalize_params(value):
+    """菜单路由参数兼容共享库的两种形态：dict（本服务写入）与 boot 风格的 [{key,value}] 数组。"""
+    if isinstance(value, list):
+        pairs = {
+            str(item.get("key")): item.get("value")
+            for item in value
+            if isinstance(item, dict) and item.get("key")
+        }
+        return pairs or None
+    return value if isinstance(value, dict) else None
 
 
 class MenuService:
@@ -48,10 +73,6 @@ class MenuService:
         if not menus:
             return []
 
-        menu_ids = {m["id"] for m in menus}
-        parent_ids = {m["parentId"] for m in menus}
-        root_ids = parent_ids - menu_ids
-
         def _build(parent_id: int) -> list[dict]:
             tree = []
             for m in menus:
@@ -63,10 +84,8 @@ class MenuService:
                     tree.append(node)
             return tree
 
-        result = []
-        for root_id in sorted(root_ids):
-            result.extend(_build(root_id))
-        return result
+        # 固定以顶级(0)为根递归：类型过滤后父级不在结果集内的节点不作为根节点，与参考实现一致
+        return _build(0)
 
     async def get_menu_form(self, menu_id: int) -> MenuUpdate:
         """获取菜单编辑表单数据。"""
@@ -89,7 +108,7 @@ class MenuService:
             sort=menu.sort,
             icon=menu.icon,
             redirect=menu.redirect,
-            params=menu.params,
+            params=normalize_params(menu.params),
         )
 
     async def update_visible(self, menu_id: int, visible: int) -> None:
@@ -106,8 +125,8 @@ class MenuService:
         # 父级层级校验：按钮只能挂在菜单下，其他类型只能挂在顶级或目录下
         await self._check_parent(form.type, form.parentId)
 
-        # 新增菜单未指定排序时排到同级末尾
-        if not form.sort:
+        # 新增菜单未指定排序时排到同级末尾；显式传 0 时保留 0
+        if "sort" not in form.model_fields_set:
             form.sort = await self._next_sort(form.parentId)
 
         # 一级目录的 routePath 不以 / 开头时自动补前缀
@@ -180,6 +199,10 @@ class MenuService:
         if form.parentId == form.id:
             raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="父级菜单不能为当前菜单")
 
+        # 父级层级校验：父级变更时才校验，未变更时放行历史遗留的非法层级
+        if form.parentId != menu.parent_id:
+            await self._check_parent(form.type, form.parentId)
+
         # 一级目录的 routePath 不以 / 开头时自动补前缀
         if form.type == "C" and form.parentId == 0 and form.routePath and not form.routePath.startswith("/"):
             form.routePath = "/" + form.routePath
@@ -230,22 +253,31 @@ class MenuService:
         return self._to_vo(menu)
 
     async def delete(self, menu_id: int) -> None:
-        """删除菜单；存在子菜单时拒绝删除（返回 B0004）。"""
+        """删除菜单并级联删除子菜单（按 tree_path 判定后代），同时解绑角色菜单。"""
         result = await self.db.execute(select(SysMenu).where(SysMenu.id == menu_id))
         menu = result.scalar_one_or_none()
         if menu is None:
             raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="菜单不存在")
 
-        # 检查是否有子菜单
-        children = await self.db.execute(
-            select(SysMenu.id).where(SysMenu.parent_id == menu_id).limit(1)
+        # 级联范围：自身 + tree_path 祖先链里带上该菜单ID的后代
+        rows = await self.db.execute(
+            select(SysMenu.id).where(
+                or_(
+                    SysMenu.id == menu_id,
+                    SysMenu.tree_path == str(menu_id),
+                    SysMenu.tree_path.like(f"{menu_id},%"),
+                    SysMenu.tree_path.like(f"%,{menu_id},%"),
+                    SysMenu.tree_path.like(f"%,{menu_id}"),
+                )
+            )
         )
-        if children.scalar() is not None:
-            raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="存在子菜单，无法删除")
+        menu_ids = rows.scalars().all()
 
-        await self.db.delete(menu)
+        # 先解绑角色菜单，避免外键约束
+        await self.db.execute(delete(SysRoleMenu).where(SysRoleMenu.menu_id.in_(menu_ids)))
+        await self.db.execute(delete(SysMenu).where(SysMenu.id.in_(menu_ids)))
         await self.db.flush()
-        logger.info(f"Menu deleted: {menu.name}")
+        logger.info(f"Menu deleted: {menu.name} (含子菜单 {len(menu_ids) - 1} 个)")
 
     async def get_routes(self, roles: set[str] = None, is_root: bool = False) -> list[RouteVO]:
         """生成前端动态路由树，按用户角色及状态过滤。"""
@@ -316,6 +348,45 @@ class MenuService:
             ))
         await self.db.flush()
 
+    async def ai_fill(self, form: MenuAiFillForm) -> MenuAiFillVO:
+        """推断菜单配置，命名风格参照同级菜单。"""
+        content = await chat_json(load_prompt(SYSTEM_PROMPT_PATH), await self._build_ai_prompt(form))
+        icon_keywords = content.get("iconKeywords")
+        return MenuAiFillVO(
+            routePath=content.get("routePath") or None,
+            perm=content.get("perm") or None,
+            iconKeywords=[str(item) for item in icon_keywords] if isinstance(icon_keywords, list) else [],
+        )
+
+    async def _build_ai_prompt(self, form: MenuAiFillForm) -> str:
+        """构造用户提示词，附带同级菜单样本供模型沿用既有命名风格。"""
+        parent_id = form.parentId or 0
+        parent = await self.db.get(SysMenu, parent_id) if parent_id else None
+
+        rows = await self.db.execute(
+            select(SysMenu)
+            .where(SysMenu.parent_id == parent_id)
+            .order_by(SysMenu.sort.asc())
+            .limit(SIBLING_SAMPLE_LIMIT)
+        )
+        siblings = rows.scalars().all()
+
+        text = [
+            f"菜单名称：{form.name}",
+            f"菜单类型：{_menu_type_label(form.type)}",
+            f"上级菜单：{parent.name if parent else '顶级'}",
+            "同级菜单示例：",
+        ]
+        if not siblings:
+            text.append("（无）")
+        else:
+            for menu in siblings:
+                text.append(
+                    f"- {menu.name}（类型 {_menu_type_label(menu.type)}，"
+                    f"路径片段 {menu.route_path or '无'}，权限 {menu.perm or '无'}）"
+                )
+        return "\n".join(text) + "\n"
+
     def _to_vo(self, m: SysMenu) -> MenuVO:
         """ORM 对象转菜单视图对象（MenuVO）。"""
         return MenuVO(
@@ -323,7 +394,8 @@ class MenuService:
             routeName=m.route_name, routePath=m.route_path, component=m.component,
             externalUrl=m.external_url, perm=m.perm,
             keepAlive=m.keep_alive, visible=m.visible,
-            sort=m.sort, icon=m.icon, redirect=m.redirect, params=m.params,
+            sort=m.sort, icon=m.icon, redirect=m.redirect,
+            params=normalize_params(m.params),
         )
 
     def _to_route(self, m: SysMenu) -> RouteVO:

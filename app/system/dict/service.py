@@ -9,7 +9,7 @@ from app.exceptions import BusinessException
 from app.response import ResultCode
 from app.system.dict.models import SysDict, SysDictItem
 from app.system.dict.schemas import (
-    DictCreate, DictItemCreate, DictItemUpdate, DictItemVO,
+    DictCreate, DictItemCreate, DictItemQuery, DictItemUpdate, DictItemVO,
     DictQuery, DictUpdate, DictVO, DictItemOptionVO,
 )
 
@@ -109,6 +109,26 @@ class DictService:
             .order_by(SysDictItem.sort.asc(), SysDictItem.id.asc())
         )
         return [DictItemVO.model_validate(r, from_attributes=True) for r in rows.scalars().all()]
+
+    async def get_item_page(self, dict_code: str, query: DictItemQuery) -> PageResult:
+        """分页查询指定字典下的字典项，支持按标签/值关键字筛选。"""
+        conditions = [SysDictItem.dict_code == dict_code, SysDictItem.is_deleted == 0]
+        if query.keywords:
+            kw = f"%{query.keywords}%"
+            conditions.append(SysDictItem.label.ilike(kw) | SysDictItem.value.ilike(kw))
+        total = (
+            await self.db.execute(select(func.count()).select_from(select(SysDictItem).where(*conditions).subquery()))
+        ).scalar() or 0
+        offset = (query.pageNum - 1) * query.pageSize
+        rows = await self.db.execute(
+            select(SysDictItem)
+            .where(*conditions)
+            .order_by(SysDictItem.sort.asc(), SysDictItem.id.asc())
+            .offset(offset)
+            .limit(query.pageSize)
+        )
+        vo_list = [DictItemVO.model_validate(item, from_attributes=True) for item in rows.scalars().all()]
+        return PageResult(records=vo_list, total=total, pageNum=query.pageNum, pageSize=query.pageSize)
 
     async def get_item_options(self, dict_code: str) -> list[DictItemOptionVO]:
         """返回字典项下拉选项（仅启用项）。"""

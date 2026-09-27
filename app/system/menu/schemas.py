@@ -41,6 +41,20 @@ class MenuVisibleForm(BaseModel):
     visible: int
 
 
+class MenuAiFillForm(BaseModel):
+    """AI 推断菜单配置入参。"""
+    name: str = Field(..., min_length=1, description="菜单名称")
+    type: str | None = Field(default=None, description="菜单类型 C-目录 M-菜单 E-外链 B-按钮")
+    parentId: BigId | None = Field(default=None, description="上级菜单ID，用于参考同级菜单的命名风格")
+
+
+class MenuAiFillVO(BaseModel):
+    """AI 推断的菜单配置。"""
+    routePath: str | None = None
+    perm: str | None = None
+    iconKeywords: list[str] = Field(default_factory=list)
+
+
 class MenuVO(BaseModel):
     id: BigId | None = None
     parentId: BigId = 0

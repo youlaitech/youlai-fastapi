@@ -7,7 +7,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_perm
 from app.auth.schemas import SysUserDetails
 from app.response import Result
-from app.system.menu.schemas import MenuCreate, MenuUpdate, MenuVisibleForm
+from app.system.menu.schemas import MenuAiFillForm, MenuCreate, MenuUpdate, MenuVisibleForm
 from app.system.menu.service import MenuService
 from app.system.log.operation_log import operation_log
 from app.system.log.constants import ActionTypeEnum, LogModuleEnum
@@ -83,6 +83,11 @@ async def delete_menu(
 ):
     await MenuService(db).delete(menu_id)
     return Result(data=None)
+
+
+@router.post("/ai-fill", summary="AI 推断菜单的访问路径与权限标识", dependencies=[Depends(require_perm())])
+async def ai_fill_menu(form: MenuAiFillForm, db: AsyncSession = Depends(get_db)):
+    return Result(data=await MenuService(db).ai_fill(form))
 
 
 @router.patch("/{menu_id}", summary="修改菜单显示状态", dependencies=[Depends(require_perm("sys:menu:update"))])

@@ -237,7 +237,7 @@ async def create_user(
     return Result(data=await UserService(db).create(form, user.userId))
 
 
-@router.get("/{user_id}", summary="用户详情", dependencies=[Depends(require_perm("sys:user:detail"))])
+@router.get("/{user_id}", summary="用户详情")
 async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
     return Result(data=await UserService(db).get_by_id(user_id))
 
