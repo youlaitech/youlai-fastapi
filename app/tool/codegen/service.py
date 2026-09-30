@@ -1,6 +1,7 @@
 """代码生成服务 — 元数据查询 + Jinja2 渲染 + 配置持久化 + zip 打包。"""
 
 import io
+import json
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +10,7 @@ from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import text, select, delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai import chat_json, load_prompt
 from app.exceptions import BusinessException
 from app.response import ResultCode
 from app.tool.codegen.models import GenTable, GenTableColumn
@@ -22,6 +24,107 @@ from app.tool.codegen.schemas import (
 )
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+
+def build_ai_user_prompt(config: GenConfigVO, requirement: str | None) -> str:
+    """构造用户提示词，附带表结构与字段清单。"""
+    columns = [
+        {
+            "columnName": field.column_name,
+            "columnType": field.column_type,
+            "fieldComment": field.column_comment,
+            "isRequired": field.is_required,
+        }
+        for field in config.field_configs
+    ]
+    return "\n".join(
+        [
+            f"表名：{config.table_name or ''}",
+            f"当前业务名：{config.business_name or ''}",
+            f"补充说明：{(requirement or '').strip() or '无'}",
+            "字段列表：",
+            json.dumps(columns, ensure_ascii=False),
+        ]
+    )
+
+
+def apply_ai_field_configs(fields: list[FieldConfigVO], ai_fields) -> None:
+    """按列名匹配回填字段配置。"""
+    if not fields or not isinstance(ai_fields, list):
+        return
+
+    ai_field_map = {}
+    for ai_field in ai_fields:
+        if not isinstance(ai_field, dict):
+            continue
+        column_name = str(ai_field.get("columnName") or "").strip()
+        if column_name:
+            ai_field_map[column_name] = ai_field
+
+    int_fields = (
+        ("isRequired", "is_required"),
+        ("isShowInList", "is_show_in_list"),
+        ("isShowInForm", "is_show_in_form"),
+        ("isShowInQuery", "is_show_in_query"),
+    )
+
+    for field in fields:
+        ai_field = ai_field_map.get(field.column_name)
+        if not ai_field:
+            continue
+
+        field_comment = str(ai_field.get("fieldComment") or "").strip()
+        if field_comment:
+            field.column_comment = field_comment
+        dict_type = str(ai_field.get("dictType") or "").strip()
+        if dict_type:
+            field.dict_type = dict_type
+
+        form_type = form_type_value(str(ai_field.get("formType") or ""))
+        if form_type is not None:
+            field.form_type = form_type
+        query_type = query_type_value(str(ai_field.get("queryType") or ""))
+        if query_type is not None:
+            field.query_type = query_type
+
+        for ai_key, field_key in int_fields:
+            value = ai_field.get(ai_key)
+            if isinstance(value, int):
+                setattr(field, field_key, value)
+
+
+def form_type_value(name: str) -> int | None:
+    """表单类型枚举名转存储值。"""
+    values = {
+        "INPUT": 1,
+        "SELECT": 2,
+        "RADIO": 3,
+        "CHECK_BOX": 4,
+        "INPUT_NUMBER": 5,
+        "SWITCH": 6,
+        "TEXT_AREA": 7,
+        "DATE": 8,
+        "DATE_TIME": 9,
+        "HIDDEN": 10,
+    }
+    return values.get(name.strip().upper())
+
+
+def query_type_value(name: str) -> int | None:
+    """查询类型枚举名转存储值。"""
+    values = {
+        "EQ": 1,
+        "LIKE": 2,
+        "IN": 3,
+        "BETWEEN": 4,
+        "GT": 5,
+        "GE": 6,
+        "LT": 7,
+        "LE": 8,
+        "NE": 9,
+        "LIKE_LEFT": 10,
+    }
+    return values.get(name.strip().upper())
 
 # ═══════════════════════════════════════════════════════════
 # PostgreSQL → Python 类型 / SQLAlchemy 类型 / TypeScript 类型
@@ -386,6 +489,18 @@ class CodegenService:
             removeTablePrefix=gt.remove_table_prefix if gt else None,
             fieldConfigs=field_configs,
         )
+
+    async def ai_fill_config(self, table_name: str, requirement: str | None = None) -> GenConfigVO:
+        """用 AI 推断代码生成配置，未推断出的字段沿用原有默认值。"""
+        config = await self.get_gen_config(table_name)
+        content = await chat_json(load_prompt("codegen/system.md"), build_ai_user_prompt(config, requirement))
+
+        business_name = str(content.get("businessName") or "").strip()
+        if business_name:
+            config.business_name = business_name
+        apply_ai_field_configs(config.field_configs, content.get("fieldConfigs"))
+
+        return config
 
     async def save_gen_config(self, table_name: str, form: GenConfigForm) -> None:
         gt = (await self.db.execute(select(GenTable).where(GenTable.table_name == table_name))).scalar_one_or_none()

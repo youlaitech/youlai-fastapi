@@ -12,7 +12,16 @@ from app.auth.token import get_token_manager
 from app.exceptions import BusinessException
 from app.response import ResultCode
 from app.system.role.models import SysRole, SysRoleDept, SysRoleMenu
-from app.system.role.schemas import RoleCreate, RoleOptionVO, RolePageVO, RoleQuery, RoleUpdate, RoleVO
+from app.constants import ROOT_ROLE_CODE
+from app.system.role.schemas import (
+    RoleCodeOptionVO,
+    RoleCreate,
+    RoleOptionVO,
+    RolePageVO,
+    RoleQuery,
+    RoleUpdate,
+    RoleVO,
+)
 
 
 class RoleService:
@@ -55,6 +64,17 @@ class RoleService:
             select(SysRole.id, SysRole.name).where(SysRole.is_deleted == 0, SysRole.status == 1)
         )
         return [RoleOptionVO(id=r.id, name=r.name) for r in rows]
+
+    async def get_code_options(self) -> list[RoleCodeOptionVO]:
+        """返回所有启用角色的编码下拉选项（编码 + 名称）。"""
+        rows = await self.db.execute(
+            select(SysRole.code, SysRole.name).where(
+                SysRole.is_deleted == 0,
+                SysRole.status == 1,
+                SysRole.code != ROOT_ROLE_CODE,
+            )
+        )
+        return [RoleCodeOptionVO(value=r.code, label=r.name) for r in rows]
 
     async def create(self, form: RoleCreate) -> RoleVO:
         """创建角色并保存其菜单/部门关联；名称或编码重复时返回 B0002。"""

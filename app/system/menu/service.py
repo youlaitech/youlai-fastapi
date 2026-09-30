@@ -381,9 +381,11 @@ class MenuService:
             text.append("（无）")
         else:
             for menu in siblings:
+                # 示例路径只展示当前这一级的路径片段
+                route_path = (menu.route_path or "").lstrip("/")
                 text.append(
                     f"- {menu.name}（类型 {_menu_type_label(menu.type)}，"
-                    f"路径片段 {menu.route_path or '无'}，权限 {menu.perm or '无'}）"
+                    f"路径片段 {route_path or '无'}，权限 {menu.perm or '无'}）"
                 )
         return "\n".join(text) + "\n"
 
@@ -419,7 +421,7 @@ class MenuService:
             "hidden": m.visible != 1,
             "keepAlive": m.keep_alive == 1 if m.keep_alive is not None else False,
         }
-        if is_embedded and m.external_url:
+        if is_external and m.external_url:
             meta["externalUrl"] = m.external_url
 
         return RouteVO(

@@ -255,14 +255,6 @@ class NoticeService:
             ))
         return PageResult(records=vo_list, total=total, pageNum=query.pageNum, pageSize=query.pageSize)
 
-    async def get_unread_count(self, user_id: int) -> int:
-        cnt = (await self.db.execute(
-            select(func.count()).select_from(SysUserNotice).where(
-                SysUserNotice.user_id == user_id, SysUserNotice.is_read == 0
-            )
-        )).scalar() or 0
-        return cnt
-
     async def delete(self, notice_id: int) -> None:
         obj = await self.db.get(SysNotice, notice_id)
         if obj is None:
@@ -292,14 +284,6 @@ async def get_my_notices(
 ):
     q = NoticeQuery(pageNum=pageNum, pageSize=pageSize)
     return Result(data=await NoticeService(db).get_my_page(q, user.userId))
-
-
-@router.get("/unread-count", summary="未读通知数量")
-async def get_unread_count(
-    user: SysUserDetails = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return Result(data=await NoticeService(db).get_unread_count(user.userId))
 
 
 @router.get("/{notice_id}", summary="通知详情")

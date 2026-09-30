@@ -28,7 +28,7 @@ services:
     image: redis:7-alpine
     ports: ["6379:6379"]
 
-  # RustFS：S3 协议兼容的对象存储服务（MinIO 停止维护后的开源替代）
+  # RustFS：S3 协议兼容的对象存储服务
   rustfs:
     image: rustfs/rustfs:latest
     ports: ["9000:9000", "9001:9001"]

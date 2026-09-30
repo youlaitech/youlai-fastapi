@@ -110,7 +110,7 @@ class LogService:
         start_dt = f"{dates[0]} 00:00:00"
         end_dt = f"{dates[-1]} 23:59:59"
 
-        # PV counts per date
+        # 按日期统计 PV
         pv_rows = await self.db.execute(
             select(func.date(SysLog.create_time), func.count())
             .where(SysLog.create_time >= start_dt, SysLog.create_time <= end_dt)
@@ -118,7 +118,7 @@ class LogService:
         )
         pv_map = {str(d): c for d, c in pv_rows}
 
-        # UV counts per date (distinct ip)
+        # 按日期统计 UV（按 IP 去重）
         ip_rows = await self.db.execute(
             select(func.date(SysLog.create_time), func.count(func.distinct(SysLog.ip)))
             .where(SysLog.create_time >= start_dt, SysLog.create_time <= end_dt)
@@ -137,37 +137,37 @@ class LogService:
         today = date.today().isoformat()
         yesterday = (date.today() - timedelta(days=1)).isoformat()
 
-        # today UV
+        # 今日 UV
         r = await self.db.execute(
             select(func.count(func.distinct(SysLog.ip)))
             .where(func.date(SysLog.create_time) == today)
         )
         today_uv = r.scalar() or 0
 
-        # yesterday UV
+        # 昨日 UV
         r = await self.db.execute(
             select(func.count(func.distinct(SysLog.ip)))
             .where(func.date(SysLog.create_time) == yesterday)
         )
         yest_uv = r.scalar() or 0
 
-        # total UV
+        # 累计 UV
         r = await self.db.execute(select(func.count(func.distinct(SysLog.ip))))
         total_uv = r.scalar() or 0
 
-        # today PV
+        # 今日 PV
         r = await self.db.execute(
             select(func.count()).where(func.date(SysLog.create_time) == today)
         )
         today_pv = r.scalar() or 0
 
-        # yesterday PV
+        # 昨日 PV
         r = await self.db.execute(
             select(func.count()).where(func.date(SysLog.create_time) == yesterday)
         )
         yest_pv = r.scalar() or 0
 
-        # total PV
+        # 累计 PV
         r = await self.db.execute(select(func.count()))
         total_pv = r.scalar() or 0
 

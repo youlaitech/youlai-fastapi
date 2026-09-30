@@ -27,7 +27,7 @@ async def login(form: LoginForm, db: AsyncSession = Depends(get_db)):
     return Result(data=LoginResult(**result))
 
 
-@router.post("/login/sms", summary="短信验证码登录")
+@router.post("/sms/login", summary="短信验证码登录")
 async def login_by_sms(
     mobile: str = Query(...),
     code: str = Query(...),

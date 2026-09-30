@@ -72,3 +72,9 @@ class RoleOptionVO(BaseModel):
     value: BigId = Field(..., alias="id")
     label: str = Field(..., alias="name")
     model_config = {"from_attributes": True}
+
+
+class RoleCodeOptionVO(BaseModel):
+    """角色编码下拉选项，value 为角色编码。"""
+    value: str
+    label: str

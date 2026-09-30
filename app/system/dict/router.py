@@ -82,7 +82,7 @@ async def delete_dict(
     return Result(data=None)
 
 
-@router.get("/{dict_code}/items", summary="字典项分页列表")
+@router.get("/{dict_code}/items", summary="字典项分页列表", dependencies=[Depends(require_perm("sys:dict-item:list"))])
 async def get_dict_items(
     dict_code: str,
     pageNum: int = Query(default=1, ge=1),

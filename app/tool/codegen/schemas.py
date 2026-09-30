@@ -105,6 +105,10 @@ class FieldConfigForm(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class AiFillConfigForm(BaseModel):
+    requirement: str | None = None
+
+
 class GenConfigForm(BaseModel):
     id: int | None = None
     table_name: str = Field(default="", alias="tableName")

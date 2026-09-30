@@ -33,11 +33,13 @@ class Settings(BaseSettings):
     AI_MODEL: str = "qwen-plus"
 
     # ── S3（RustFS） ──
-    S3_ENDPOINT: str = "111.229.83.153:9000"
+    S3_ENDPOINT: str = "127.0.0.1:9000"
     S3_ACCESS_KEY: str = "rustfs-admin"
     S3_SECRET_KEY: str = "rustfs-admin"
     S3_BUCKET: str = "public"
     S3_SECURE: bool = False
+    # 自定义域名：配置后文件 URL 走域名，留空则用 endpoint
+    S3_CUSTOM_DOMAIN: str = ""
 
     # ── 邮件 ──
     MAIL_USERNAME: str = "your-email@example.com"

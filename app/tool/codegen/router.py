@@ -6,10 +6,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import require_perm
 from app.pagination import PageResult
 from app.response import Result
-from app.tool.codegen.schemas import GenConfigForm, PreviewQuery, TableQuery
+from app.tool.codegen.schemas import AiFillConfigForm, GenConfigForm, PreviewQuery, TableQuery
 from app.tool.codegen.service import CodegenService
 
 router = APIRouter(prefix="/api/v1/codegen", tags=["代码生成"])
@@ -34,8 +33,7 @@ async def get_gen_config(table_name: str, db: AsyncSession = Depends(get_db)):
     return Result(data=(await CodegenService(db).get_gen_config(table_name)).model_dump(by_alias=True))
 
 
-@router.post("/{table_name}/config", summary="保存代码生成配置",
-             dependencies=[Depends(require_perm("sys:codegen:update"))])
+@router.post("/{table_name}/config", summary="保存代码生成配置")
 async def save_gen_config(table_name: str, form: GenConfigForm, db: AsyncSession = Depends(get_db)):
     await CodegenService(db).save_gen_config(table_name, form)
     return Result(data=None)
@@ -45,6 +43,17 @@ async def save_gen_config(table_name: str, form: GenConfigForm, db: AsyncSession
 async def delete_gen_config(table_name: str, db: AsyncSession = Depends(get_db)):
     await CodegenService(db).delete_gen_config(table_name)
     return Result(data=None)
+
+
+@router.post("/{table_name}/ai-config", summary="AI 填充代码生成配置")
+async def ai_fill_config(
+    table_name: str,
+    form: AiFillConfigForm | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    requirement = form.requirement if form else None
+    data = await CodegenService(db).ai_fill_config(table_name, requirement)
+    return Result(data=data.model_dump(by_alias=True))
 
 
 @router.get("/{table_name}/preview", summary="获取预览生成代码")

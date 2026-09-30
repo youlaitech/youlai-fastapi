@@ -34,6 +34,12 @@ async def get_role_options(db: AsyncSession = Depends(get_db)):
     return Result(data=result)
 
 
+@router.get("/code-options", summary="角色编码下拉选项")
+async def get_role_code_options(db: AsyncSession = Depends(get_db)):
+    result = await RoleService(db).get_code_options()
+    return Result(data=result)
+
+
 @router.get("/{role_id}/form", summary="角色表单数据", dependencies=[Depends(require_perm("sys:role:update"))])
 async def get_role_form(role_id: int, db: AsyncSession = Depends(get_db)):
     return Result(data=await RoleService(db).get_role_form(role_id))

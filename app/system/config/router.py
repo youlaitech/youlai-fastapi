@@ -70,11 +70,6 @@ class ConfigService:
             raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="配置不存在")
         return ConfigForm.model_validate(obj, from_attributes=True)
 
-    async def get_by_key(self, key: str) -> str | None:
-        """按 config_key 读取配置值；未命中返回 None。"""
-        r = await self.db.execute(select(SysConfig.config_value).where(SysConfig.config_key == key, SysConfig.is_deleted == 0))
-        return r.scalar()
-
     async def create(self, form: ConfigForm) -> ConfigVO:
         """创建配置；config_key 重复时返回 B0002。"""
         exist = await self.db.execute(select(SysConfig.id).where(SysConfig.config_key == form.configKey, SysConfig.is_deleted == 0))
@@ -133,11 +128,6 @@ async def get_configs(
 @router.get("/{config_id}/form", summary="配置表单数据")
 async def get_config_form(config_id: int, db: AsyncSession = Depends(get_db)):
     return Result(data=await ConfigService(db).get_config_form(config_id))
-
-
-@router.get("/{config_key}/value", summary="根据key获取配置值")
-async def get_config_value(config_key: str, db: AsyncSession = Depends(get_db)):
-    return Result(data=await ConfigService(db).get_by_key(config_key))
 
 
 @router.put("/refresh", summary="刷新配置缓存", dependencies=[Depends(require_perm("sys:config:refresh"))])

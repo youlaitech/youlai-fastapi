@@ -30,7 +30,7 @@ async def get_dept_options(db: AsyncSession = Depends(get_db)):
     return Result(data=options)
 
 
-@router.get("/{dept_id}", summary="部门详情", dependencies=[Depends(require_perm("sys:dept:detail"))])
+@router.get("/{dept_id}", summary="部门详情", dependencies=[Depends(require_perm("sys:dept:list"))])
 async def get_dept(dept_id: int, db: AsyncSession = Depends(get_db)):
     vo = await DeptService(db).get_by_id(dept_id)
     return Result(data=vo)

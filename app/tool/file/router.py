@@ -63,7 +63,10 @@ async def _ensure_bucket(client, bucket: str) -> None:
     def _sync():
         try:
             client.head_bucket(Bucket=bucket)
-        except client.exceptions.ClientError:
+        except client.exceptions.ClientError as exc:
+            # 桶不存在（404）才创建，其余错误（如权限不足）原样抛出
+            if exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") != 404:
+                raise
             client.create_bucket(Bucket=bucket)
             policy = (
                 '{"Version":"2012-10-17","Statement":['
@@ -108,7 +111,11 @@ async def upload_file(
 
     await loop.run_in_executor(None, _sync_upload)
 
-    url = f"{'https' if settings.S3_SECURE else 'http'}://{settings.S3_ENDPOINT}/{bucket}/{object_name}"
+    domain = settings.S3_CUSTOM_DOMAIN.strip().rstrip("/")
+    if domain:
+        url = f"{domain}/{bucket}/{object_name}"
+    else:
+        url = f"{'https' if settings.S3_SECURE else 'http'}://{settings.S3_ENDPOINT}/{bucket}/{object_name}"
     logger.info(f"File uploaded: {object_name} by user={user.userId}")
     return Result(data={"name": file.filename, "url": url, "size": len(content)})
 
@@ -119,8 +126,13 @@ async def delete_file(filePath: str, user: SysUserDetails = Depends(get_current_
     client = _get_s3_client()
     bucket = settings.S3_BUCKET
 
-    # 从 URL 提取 object_name
-    object_name = filePath.split(f"/{bucket}/")[-1]
+    # 从 URL 提取 object_name（兼容直链与自定义域名，签名 query 不计入；纯 key 直接使用）
+    path = filePath.split("?", 1)[0]
+    marker = f"/{bucket}/"
+    index = path.find(marker)
+    object_name = path[index + len(marker):] if index >= 0 else path.lstrip("/")
+    if not object_name:
+        raise BusinessException(code=ResultCode.PARAM_VALID_FAIL, msg="文件路径不合法")
     loop = asyncio.get_running_loop()
 
     def _sync_delete():
