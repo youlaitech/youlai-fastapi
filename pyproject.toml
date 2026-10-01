@@ -1,6 +1,6 @@
 [project]
 name = "youlai-fastapi"
-version = "1.2.0"
+version = "1.2.1"
 description = "vue3-element-admin 的 FastAPI 后端，基于 FastAPI + SQLAlchemy + PostgreSQL/Redis 构建"
 readme = "README.md"
 license = { text = "Apache-2.0" }

@@ -1,5 +1,7 @@
 """动态表单 Pydantic 模型。"""
-from pydantic import BaseModel, Field
+import json
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class FormDefinitionPageVO(BaseModel):
@@ -36,6 +38,24 @@ class FormDefinitionCreate(BaseModel):
     optionsJson: dict | None = None
     isPublic: int | None = 0
     category: str | None = "normal"
+
+    @field_validator("formJson", mode="before")
+    @classmethod
+    def _coerce_form_json(cls, v):
+        """兼容 JSON 字符串入参，统一转为规则数组。"""
+        if isinstance(v, str):
+            v = v.strip()
+            return json.loads(v) if v else None
+        return v
+
+    @field_validator("optionsJson", mode="before")
+    @classmethod
+    def _coerce_options_json(cls, v):
+        """兼容 JSON 字符串入参，统一转为配置对象。"""
+        if isinstance(v, str):
+            v = v.strip()
+            return json.loads(v) if v else None
+        return v
 
 
 class FormDefinitionUpdate(FormDefinitionCreate):
