@@ -295,6 +295,15 @@ async def get_notice(
     return Result(data=await NoticeService(db).get_by_id(notice_id, user.userId))
 
 
+@router.get("/{notice_id}/detail", summary="阅读获取通知详情")
+async def get_notice_detail(
+    notice_id: int,
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return Result(data=await NoticeService(db).get_by_id(notice_id, user.userId))
+
+
 @router.post("", summary="创建通知", dependencies=[Depends(require_perm("sys:notice:create"))])
 @operation_log(module=LogModuleEnum.NOTICE, action_type=ActionTypeEnum.INSERT, title="新增通知")
 async def create_notice(
