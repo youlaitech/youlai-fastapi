@@ -203,7 +203,7 @@ class UserService:
             select(SysUser.id, SysUser.username, SysUser.nickname)
             .where(SysUser.is_deleted == 0, SysUser.status == 1)
         )
-        return [{"value": r.id, "label": f"{r.nickname}({r.username})"} for r in rows]
+        return [{"value": str(r.id), "label": f"{r.nickname}({r.username})"} for r in rows]
 
     async def get_current_user_info(self, user_id: int) -> UserVO:
         """获取当前登录用户信息。"""

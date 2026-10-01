@@ -62,7 +62,7 @@ class DeptService:
             tree = []
             for d in depts:
                 if d["parentId"] == parent_id:
-                    node = {"value": d["id"], "label": d["name"]}
+                    node = {"value": str(d["id"]), "label": d["name"]}
                     children = _build(d["id"])
                     if children:
                         node["children"] = children

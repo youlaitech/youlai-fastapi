@@ -77,7 +77,7 @@ class MenuService:
             tree = []
             for m in menus:
                 if m["parentId"] == parent_id:
-                    node = {"value": m["id"], "label": m["name"]}
+                    node = {"value": str(m["id"]), "label": m["name"]}
                     children = _build(m["id"])
                     if children:
                         node["children"] = children
