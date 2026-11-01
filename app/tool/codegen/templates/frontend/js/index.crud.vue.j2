@@ -1,0 +1,120 @@
+<template>
+  <CrudPage
+    :search-config="searchConfig"
+    :table-config="tableConfig"
+    :form-config="formConfig"
+    :load-form-data="loadFormData"
+  >
+{% for c in columns %}{% if c.is_show_in_query and c.dict_type %}    <template #search-[[ c.field_name ]]="{ formData, prop, attrs }">
+      <DictSelect v-model="formData[prop]" code="[[ c.dict_type ]]" v-bind="attrs" />
+    </template>
+{% endif %}{% endfor %}{% for c in columns %}{% if c.is_show_in_list and c.dict_type %}    <template #table-cell-[[ c.field_name ]]="{ row }">
+      <DictTag :model-value="row.[[ c.field_name ]]" code="[[ c.dict_type ]]" />
+    </template>
+{% endif %}{% endfor %}{% for c in columns %}{% if c.is_show_in_form and c.form_type_name != "HIDDEN" and c.dict_type %}    <template #form-[[ c.field_name ]]="{ formData, prop, attrs }">
+      <DictSelect v-model="formData[prop]" code="[[ c.dict_type ]]" v-bind="attrs" />
+    </template>
+{% endif %}{% endfor %}  </CrudPage>
+</template>
+
+<script setup>
+import [[ entity_name ]]API from "@/api/[[ module_name ]]/[[ entity_kebab ]]";
+
+defineOptions({ name: "[[ entity_name ]]", inheritAttrs: false });
+
+const searchConfig = {
+  fields: [
+{% for c in columns %}{% if c.is_show_in_query %}    {
+      prop: "[[ c.field_name ]]",
+      label: "[[ c.field_comment ]]",
+{% if c.dict_type %}      type: "custom",
+      attrs: { clearable: true },
+{% elif c.form_type_name in ("DATE", "DATE_TIME") %}      type: "date-picker",
+{% if c.query_type_name == "BETWEEN" %}      initialValue: [],
+      attrs: {
+        type: "daterange",
+        valueFormat: "YYYY-MM-DD",
+        startPlaceholder: "开始日期",
+        endPlaceholder: "结束日期",
+      },
+{% else %}      attrs: { type: "date", valueFormat: "YYYY-MM-DD", clearable: true },
+{% endif %}{% elif c.form_type_name == "INPUT_NUMBER" %}      type: "input-number",
+      attrs: { clearable: true },
+{% else %}      type: "input",
+      attrs: { clearable: true },
+{% endif %}    },
+{% endif %}{% endfor %}  ],
+};
+
+const tableConfig = {
+  permissionPrefix: "[[ module_name ]]:[[ entity_kebab ]]",
+  table: { border: true },
+  fetchData: [[ entity_name ]]API.getPage,
+  deleteByIds: [[ entity_name ]]API.deleteByIds,
+  toolbarActions: ["create", "delete"],
+  tableTools: ["refresh", "columns", "search"],
+  columns: [
+    { type: "selection", width: 50 },
+{% for c in columns %}{% if c.is_show_in_list %}    { prop: "[[ c.field_name ]]", label: "[[ c.field_comment ]]", minWidth: 120 },
+{% endif %}{% endfor %}    {
+      prop: "actions",
+      label: "操作",
+      cellType: "actions",
+      actions: ["view", "edit", "delete"],
+      fixed: "right",
+      width: 200,
+    },
+  ],
+};
+
+const formConfig = {
+  title: ({ mode }) => ({
+    create: "新增[[ business_name ]]",
+    edit: "编辑[[ business_name ]]",
+    view: "查看[[ business_name ]]",
+  })[mode],
+  dialog: { width: 560 },
+  /**
+   * 保存记录，更新目标使用打开表单时的主键。
+   */
+  submitForm(data, { mode, id }) {
+    if (mode === "create") return [[ entity_name ]]API.create(data);
+    if (id === undefined) throw new Error("缺少记录 ID");
+    return [[ entity_name ]]API.update(String(id), data);
+  },
+  fields: [
+{% for c in columns %}{% if c.is_show_in_form and c.form_type_name != "HIDDEN" %}    {
+      prop: "[[ c.field_name ]]",
+      label: "[[ c.field_comment ]]",
+{% if c.is_required %}      required: true,
+{% endif %}{% if c.dict_type %}      type: "custom",
+{% elif c.form_type_name == "SWITCH" %}      type: "switch",
+{% if c.ts_type == "boolean" %}      initialValue: true,
+      attrs: { activeValue: true, inactiveValue: false },
+{% else %}      initialValue: 1,
+      attrs: { activeValue: 1, inactiveValue: 0 },
+{% endif %}{% elif c.form_type_name in ("DATE", "DATE_TIME") %}      type: "date-picker",
+{% if c.form_type_name == "DATE_TIME" %}      attrs: { type: "datetime", valueFormat: "YYYY-MM-DD HH:mm:ss" },
+{% else %}      attrs: { type: "date", valueFormat: "YYYY-MM-DD" },
+{% endif %}{% elif c.form_type_name == "INPUT_NUMBER" %}      type: "input-number",
+{% elif c.form_type_name == "SELECT" %}      type: "select",
+      options: [],
+{% elif c.form_type_name == "RADIO" %}      type: "radio",
+      options: [],
+{% elif c.form_type_name == "CHECK_BOX" %}      type: "checkbox",
+      initialValue: [],
+      options: [],
+{% else %}      type: "input",
+{% if c.form_type_name == "TEXT_AREA" %}      attrs: { type: "textarea", rows: 3 },
+{% endif %}{% endif %}    },
+{% endif %}{% endfor %}  ],
+};
+
+/**
+ * 加载编辑和查看所需的详情。
+ */
+function loadFormData(row) {
+  const rowKey = tableConfig.rowKey ?? "id";
+  return [[ entity_name ]]API.getFormData(String(row[rowKey]));
+}
+</script>

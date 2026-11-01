@@ -45,8 +45,6 @@ dependencies = [
     "loguru>=0.7.0,<1",
     # Pagination
     "fastapi-pagination>=0.12.0,<1",
-    # SSE
-    "sse-starlette>=2.0.0,<3",
     # Captcha
     "pillow>=10.4.0,<12",
     # Excel

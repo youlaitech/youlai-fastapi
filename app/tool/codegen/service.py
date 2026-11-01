@@ -616,11 +616,13 @@ class CodegenService:
             except Exception:
                 pass  # 模板缺失时跳过
 
-        # 前端模板
+        # 前端模板：crud 页面使用封装版模板
+        is_crud = str(page_type or "").strip().lower() == "crud"
+        view_tpl = "index.crud.vue.j2" if is_crud else "index.vue.j2"
         if is_js:
             for tpl, fname in [
                 ("frontend/js/api.js.j2", "index.js"),
-                ("frontend/js/index.vue.j2", "index.vue"),
+                (f"frontend/js/{view_tpl}", "index.vue"),
             ]:
                 try:
                     tmpl = env.get_template(tpl)
@@ -635,7 +637,7 @@ class CodegenService:
             for tpl, fname in [
                 ("frontend/ts/api.ts.j2", "index.ts"),
                 ("frontend/ts/types.ts.j2", "types.ts"),
-                ("frontend/ts/index.vue.j2", "index.vue"),
+                (f"frontend/ts/{view_tpl}", "index.vue"),
             ]:
                 try:
                     tmpl = env.get_template(tpl)

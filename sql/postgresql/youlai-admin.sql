@@ -257,8 +257,8 @@ INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_pa
 -- 实战文档双形态置顶（内嵌 iframe + 外链新标签），直观演示系统对两种外链打开方式的支持
 
 -- ============================ 通用组件（顶级 ID=4） ============================
--- 前端模板招牌能力聚合，独立顶级便于访客沉淀组件库；按用途三分组：基础/表单/表格
--- 物理目录 views/demo/component（基础与表单）与 views/demo/table（表格）一一对应
+-- 前端模板招牌能力聚合，独立顶级便于访客沉淀组件库；按用途四分组：基础/表单/CRUD/表格
+-- 物理目录 views/demo/component（基础与表单）、views/demo/crud（CRUD）与 views/demo/table（表格）一一对应
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (4, 0, '0', '通用组件', 'C', '', '/component', 'Layout', NULL, NULL, 1, 4, 'el-icon-SetUp', '/component/basic/icon-demo', now(), now(), NULL);
 
 -- 基础组件（不依附表单/表格场景的通用 UI 能力）
@@ -276,12 +276,13 @@ INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_pa
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (40204, 402, '0,4,402', '字典组件', 'M', 'DictDemo', 'dict-demo', 'demo/component/dictionary', NULL, 1, 1, 4, '', '', now(), now(), NULL);
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (40205, 402, '0,4,402', '列表选择器', 'M', 'TableSelect', 'table-select', 'demo/component/table-select/index', NULL, 1, 1, 5, '', '', now(), now(), NULL);
 
+-- CRUD 组件（完整业务页面，物理目录 views/demo/crud 与之对应）
+INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (403, 4, '0,4', 'CRUD 示例', 'M', 'CrudDemo', 'crud', 'demo/crud/index', NULL, 1, 1, 3, 'el-icon-Document', '', now(), now(), NULL);
+
 -- 表格组件（数据展示场景，物理目录 views/demo/table 与之对应）
-INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (403, 4, '0,4', '表格组件', 'C', '', 'table', 'Layout', NULL, NULL, 1, 3, 'el-icon-Grid', '', now(), now(), NULL);
-INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (40301, 403, '0,4,403', '增删改查', 'M', 'Crud', 'crud', 'demo/table/crud/index', NULL, 1, 1, 1, '', '', now(), now(), NULL);
-INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (40302, 403, '0,4,403', 'CRUD单文件', 'M', 'CrudSingle', 'crud-single', 'demo/table/crud-single', NULL, 1, 1, 2, 'el-icon-Reading', '', now(), now(), NULL);
-INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (40303, 403, '0,4,403', 'VxeTable', 'M', 'VxeTable', 'vxe-table', 'demo/table/vxe-table/index', NULL, 1, 1, 3, 'el-icon-MagicStick', '', now(), now(), NULL);
-INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (40304, 403, '0,4,403', '自适应表格操作列', 'M', 'AutoOperationColumn', 'operation-column', 'demo/table/auto-operation-column', NULL, 1, 1, 4, '', '', now(), now(), NULL);
+INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (404, 4, '0,4', '表格组件', 'C', '', 'table', 'Layout', NULL, NULL, 1, 4, 'el-icon-Grid', '', now(), now(), NULL);
+INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (40401, 404, '0,4,404', 'VxeTable', 'M', 'VxeTable', 'vxe-table', 'demo/table/vxe-table/index', NULL, 1, 1, 1, 'el-icon-MagicStick', '', now(), now(), NULL);
+INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (40402, 404, '0,4,404', '自适应表格操作列', 'M', 'AutoOperationColumn', 'operation-column', 'demo/table/auto-operation-column', NULL, 1, 1, 2, '', '', now(), now(), NULL);
 
 -- ============================ 多级菜单（顶级 ID=5） ============================
 -- 独立顶级，直观演示菜单驱动动态路由的嵌套能力，避免折叠导致顶级菜单不可见
@@ -392,7 +393,7 @@ INSERT INTO sys_role_menu VALUES
 (6, 10104), (6, 10105), (6, 10106), (6, 10107), (6, 102), (6, 10201), (6, 10202), (6, 10203), (6, 10204), (6, 10205),
 (7, 1), (7, 101), (7, 10101), (7, 10102), (7, 10103), (7, 10104), (7, 10105), (7, 10106), (7, 10107), (7, 102),
 (7, 10201), (7, 10202), (7, 10203), (7, 10204), (7, 10205), (2, 401), (2, 40101), (2, 40102), (2, 40103), (2, 40104), (2, 402), (2, 40201),
-(2, 40202), (2, 40203), (2, 40204), (2, 40205), (2, 403), (2, 40301), (2, 40302), (2, 40303), (2, 40304), (2, 501),
+(2, 40202), (2, 40203), (2, 40204), (2, 40205), (2, 403), (2, 40401), (2, 40402), (2, 404), (2, 501),
 (2, 50101), (2, 5010101), (2, 5010102), (2, 601), (2, 602), (2, 603), (2, 604), (2, 605) ON CONFLICT DO NOTHING;
 -- 系统管理
 
@@ -769,39 +770,33 @@ INSERT INTO sys_user_notice VALUES (28, 9, 3, 1, NULL, now(), now(), 0);
 INSERT INTO sys_user_notice VALUES (29, 10, 3, 0, NULL, now(), now(), 0);
 
 -- ----------------------------
--- 表结构：sys_user_social
+-- 表结构：sys_user_identity
 -- ----------------------------
-DROP TABLE IF EXISTS sys_user_social;
-CREATE TABLE sys_user_social (
+DROP TABLE IF EXISTS sys_user_identity;
+CREATE TABLE sys_user_identity (
     id bigint GENERATED BY DEFAULT AS IDENTITY,
     user_id bigint NOT NULL,
-    platform varchar(20) NOT NULL,
-    openid varchar(64) NOT NULL,
-    unionid varchar(64) DEFAULT NULL,
-    nickname varchar(64) DEFAULT NULL,
-    avatar varchar(255) DEFAULT NULL,
-    session_key varchar(128) DEFAULT NULL,
-    verified smallint DEFAULT 1,
-    create_time timestamp DEFAULT NULL,
-    update_time timestamp DEFAULT NULL,
-    PRIMARY KEY (id)
+    provider varchar(64) NOT NULL,
+    provider_account_id varchar(255) NOT NULL,
+    display_name varchar(128),
+    avatar_url varchar(512),
+    last_login_time timestamp,
+    create_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_provider_account UNIQUE (provider, provider_account_id),
+    CONSTRAINT uk_user_provider UNIQUE (user_id, provider)
 );
-COMMENT ON TABLE sys_user_social IS '用户第三方账号绑定表';
-COMMENT ON COLUMN sys_user_social.id IS '主键ID';
-COMMENT ON COLUMN sys_user_social.user_id IS '用户ID';
-COMMENT ON COLUMN sys_user_social.platform IS '平台类型(WECHAT_MINI/WECHAT_MP/ALIPAY/QQ/APPLE)';
-COMMENT ON COLUMN sys_user_social.openid IS '平台openid';
-COMMENT ON COLUMN sys_user_social.unionid IS '微信unionid';
-COMMENT ON COLUMN sys_user_social.nickname IS '第三方昵称';
-COMMENT ON COLUMN sys_user_social.avatar IS '第三方头像URL';
-COMMENT ON COLUMN sys_user_social.session_key IS '微信session_key';
-COMMENT ON COLUMN sys_user_social.verified IS '是否已验证(1-已验证 0-未验证)';
-COMMENT ON COLUMN sys_user_social.create_time IS '绑定时间';
-COMMENT ON COLUMN sys_user_social.update_time IS '更新时间';
-CREATE UNIQUE INDEX uk_platform_openid ON sys_user_social (platform, openid);
-CREATE INDEX idx_user_id ON sys_user_social (user_id);
-CREATE INDEX idx_unionid ON sys_user_social (unionid);
-
+COMMENT ON TABLE sys_user_identity IS '本地用户与外部账号的关联';
+COMMENT ON COLUMN sys_user_identity.id IS '关联记录ID';
+COMMENT ON COLUMN sys_user_identity.user_id IS '本地用户ID，角色与数据权限归属此用户';
+COMMENT ON COLUMN sys_user_identity.provider IS '具体认证源标识，如 wechat-mini-main';
+COMMENT ON COLUMN sys_user_identity.provider_account_id IS '来源方账号ID，小程序即 OpenID';
+COMMENT ON COLUMN sys_user_identity.display_name IS '外部账号展示名，不参与身份匹配';
+COMMENT ON COLUMN sys_user_identity.avatar_url IS '外部账号头像，不覆盖本地资料';
+COMMENT ON COLUMN sys_user_identity.last_login_time IS '最近一次通过该外部账号登录的时间';
+COMMENT ON COLUMN sys_user_identity.create_time IS '关联创建时间';
+COMMENT ON COLUMN sys_user_identity.update_time IS '更新时间';
 -- ----------------------------
 -- 3. 重置 IDENTITY 序列以匹配已存在的种子数据
 -- ----------------------------
@@ -820,7 +815,7 @@ SELECT setval(pg_get_serial_sequence('gen_table_column', 'id'), COALESCE((SELECT
 SELECT setval(pg_get_serial_sequence('sys_config', 'id'), COALESCE((SELECT MAX(id) FROM sys_config), 1));
 SELECT setval(pg_get_serial_sequence('sys_notice', 'id'), COALESCE((SELECT MAX(id) FROM sys_notice), 1));
 SELECT setval(pg_get_serial_sequence('sys_user_notice', 'id'), COALESCE((SELECT MAX(id) FROM sys_user_notice), 1));
-SELECT setval(pg_get_serial_sequence('sys_user_social', 'id'), COALESCE((SELECT MAX(id) FROM sys_user_social), 1));
+SELECT setval(pg_get_serial_sequence('sys_user_identity', 'id'), COALESCE((SELECT MAX(id) FROM sys_user_identity), 1));
 
 
 

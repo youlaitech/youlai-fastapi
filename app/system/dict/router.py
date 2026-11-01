@@ -11,8 +11,8 @@ from app.dependencies import get_current_user, require_perm
 from app.response import Result
 from app.system.log.constants import ActionTypeEnum, LogModuleEnum
 from app.system.log.operation_log import operation_log
-from app.tool.sse.manager import broadcast
-from app.tool.sse.topics import DICT
+from app.tool.realtime.manager import broadcast
+from app.tool.realtime.topics import DICT_CHANGED, TOPIC_DICT
 from app.system.dict.schemas import (
     DictCreate, DictItemCreate, DictItemQuery, DictItemUpdate, DictItemVO, DictUpdate,
 )
@@ -52,7 +52,7 @@ async def create_dict(
     db: AsyncSession = Depends(get_db),
 ):
     result = await DictService(db).create_type(form)
-    await broadcast(DICT, {"dictCode": form.dictCode, "timestamp": int(time.time() * 1000)})
+    await broadcast(TOPIC_DICT, DICT_CHANGED, {"dictCode": form.dictCode})
     return Result(data=result)
 
 
@@ -61,7 +61,7 @@ async def update_dict(id: int, form: DictUpdate, db: AsyncSession = Depends(get_
     form.id = id
     await DictService(db).update_type(form)
     if form.dictCode:
-        await broadcast(DICT, {"dictCode": form.dictCode, "timestamp": int(time.time() * 1000)})
+        await broadcast(TOPIC_DICT, DICT_CHANGED, {"dictCode": form.dictCode})
     return Result(data=None)
 
 
@@ -78,7 +78,7 @@ async def delete_dict(
     await DictService(db).delete_type(ids)
     ts = int(time.time() * 1000)
     for code in codes:
-        await broadcast(DICT, {"dictCode": code, "timestamp": ts})
+        await broadcast(TOPIC_DICT, DICT_CHANGED, {"dictCode": code})
     return Result(data=None)
 
 
@@ -115,7 +115,7 @@ async def create_dict_item(
 ):
     form.dictCode = dict_code
     result = await DictService(db).create_item(form)
-    await broadcast(DICT, {"dictCode": dict_code, "timestamp": int(time.time() * 1000)})
+    await broadcast(TOPIC_DICT, DICT_CHANGED, {"dictCode": dict_code})
     return Result(data=result)
 
 
@@ -124,7 +124,7 @@ async def update_dict_item(dict_code: str, item_id: int, form: DictItemUpdate, d
     form.id = item_id
     form.dictCode = dict_code
     await DictService(db).update_item(form)
-    await broadcast(DICT, {"dictCode": dict_code, "timestamp": int(time.time() * 1000)})
+    await broadcast(TOPIC_DICT, DICT_CHANGED, {"dictCode": dict_code})
     return Result(data=None)
 
 
@@ -138,5 +138,5 @@ async def delete_dict_items(
     db: AsyncSession = Depends(get_db),
 ):
     await DictService(db).delete_items(item_ids)
-    await broadcast(DICT, {"dictCode": dict_code, "timestamp": int(time.time() * 1000)})
+    await broadcast(TOPIC_DICT, DICT_CHANGED, {"dictCode": dict_code})
     return Result(data=None)

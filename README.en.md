@@ -327,6 +327,15 @@ youlai-fastapi/
 
 
 
+## Optional Extensions
+
+**AI (off by default)**: enable it and fill the key in `.env`; `app/config.py` reads these variables.
+
+```env
+AI_ENABLED=true
+AI_API_KEY=sk-xxx
+```
+
 ## Documentation
 
 

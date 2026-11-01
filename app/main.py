@@ -91,9 +91,9 @@ def create_app() -> FastAPI:
     app.include_router(codegen_router)
     app.include_router(wxma_router)
 
-    # ── SSE 端点 ──
-    from app.tool.sse.router import router as sse_router
-    app.include_router(sse_router)
+    # ── 实时推送端点 ──
+    from app.tool.realtime.router import router as realtime_router
+    app.include_router(realtime_router)
 
     logger.info("All routers registered")
     return app

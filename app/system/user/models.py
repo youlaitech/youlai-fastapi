@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, SmallInteger, String, UniqueConstraint, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, SmallInteger, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, BaseIdMixin, SoftDeleteMixin, TimestampMixin
@@ -40,23 +40,22 @@ class SysUserRole(Base):
     role_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, comment="角色ID")
 
 
-class SysUserSocial(Base):
-    __tablename__ = "sys_user_social"
+class SysUserIdentity(Base):
+    """本地用户与外部账号的关联"""
+
+    __tablename__ = "sys_user_identity"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, comment="用户ID")
-    platform: Mapped[str] = mapped_column(String(20), comment="平台类型 WECHAT_MINI/WECHAT_MP/ALIPAY/QQ/APPLE")
-    openid: Mapped[str] = mapped_column(String(64), comment="平台openid")
-    unionid: Mapped[str | None] = mapped_column(String(64), comment="微信unionid")
-    nickname: Mapped[str | None] = mapped_column(String(64), comment="第三方昵称")
-    avatar: Mapped[str | None] = mapped_column(String(255), comment="第三方头像URL")
-    session_key: Mapped[str | None] = mapped_column(String(128), comment="微信session_key")
-    verified: Mapped[int] = mapped_column(SmallInteger, default=1, comment="是否已验证 1-已验证 0-未验证")
-    create_time: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.now(), comment="绑定时间")
+    user_id: Mapped[int] = mapped_column(BigInteger, comment="本地用户ID")
+    provider: Mapped[str] = mapped_column(String(64), comment="具体认证源标识，如 wechat-mini-main")
+    provider_account_id: Mapped[str] = mapped_column(String(255), comment="来源方账号ID")
+    display_name: Mapped[str | None] = mapped_column(String(128), comment="外部账号展示名")
+    avatar_url: Mapped[str | None] = mapped_column(String(512), comment="外部账号头像")
+    last_login_time: Mapped[datetime | None] = mapped_column(DateTime, comment="最近一次登录时间")
+    create_time: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.now(), comment="关联创建时间")
     update_time: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        UniqueConstraint("platform", "openid", name="uk_platform_openid"),
-        Index("idx_user_id", "user_id"),
-        Index("idx_unionid", "unionid"),
+        UniqueConstraint("provider", "provider_account_id", name="uk_provider_account"),
+        UniqueConstraint("user_id", "provider", name="uk_user_provider"),
     )

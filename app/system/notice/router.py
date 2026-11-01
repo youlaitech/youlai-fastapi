@@ -16,8 +16,8 @@ from app.response import Result, ResultCode
 from datetime import datetime
 
 from app.auth.schemas import SysUserDetails
-from app.tool.sse.manager import broadcast, get_online_users, send_to_user
-from app.tool.sse.topics import NOTICE, NOTICE_REVOKE
+from app.tool.realtime.manager import broadcast, get_online_users, send_to_user
+from app.tool.realtime.topics import NOTICE_CHANGED, TOPIC_NOTICE
 from app.system.notice.models import SysNotice, SysUserNotice
 from app.system.user.models import SysUser
 from app.system.log.operation_log import operation_log
@@ -345,7 +345,11 @@ async def publish_notice(
     online = set(await get_online_users())
     for _uid, uname in targets:
         if uname in online:
-            await send_to_user(uname, NOTICE, notice_vo)
+            await send_to_user(
+                uname,
+                NOTICE_CHANGED,
+                {"noticeId": str(notice_vo["id"]), "action": "published"},
+            )
     return Result(data=None)
 
 
@@ -358,7 +362,7 @@ async def revoke_notice(
     db: AsyncSession = Depends(get_db),
 ):
     nid = await NoticeService(db).revoke(notice_id)
-    await broadcast(NOTICE_REVOKE, {"id": nid})
+    await broadcast(TOPIC_NOTICE, NOTICE_CHANGED, {"noticeId": str(nid), "action": "revoked"})
     return Result(data=None)
 
 

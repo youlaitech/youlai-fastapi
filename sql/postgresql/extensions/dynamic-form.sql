@@ -110,7 +110,7 @@ CREATE INDEX idx_form_version ON form_snapshot (form_id, version);
 -- 菜单（扩展段顶级 ID=8，基础段 1-7 见 youlai_admin.sql）
 -- 目录与视图目录/URL 全链路对齐：views/dynamic-form + /dynamic-form（route_path/component 字段）
 -- ----------------------------
--- params 携 {"badge":"NEW"}：挂顶级"动态表单"一级可见（二级折叠态角标不可见），宣传期过后清空 params 即消失
+-- 顶级菜单 params 中的 badge 是侧边栏角标
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (8, 0, '0', '动态表单', 'C', '', '/dynamic-form', 'Layout', NULL, NULL, 1, 8, 'el-icon-Document', '/dynamic-form/definition', now(), now(), '{"badge":"NEW"}') ON CONFLICT DO NOTHING;
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (801, 8, '0,8', '表单列表', 'M', 'FormDefinition', 'definition', 'dynamic-form/index', NULL, 1, 1, 1, 'el-icon-List', NULL, now(), now(), NULL) ON CONFLICT DO NOTHING;
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (80101, 801, '0,8,801', '表单查询', 'B', NULL, '', NULL, 'form:definition:list', NULL, 1, 1, '', NULL, now(), now(), NULL) ON CONFLICT DO NOTHING;
@@ -127,10 +127,7 @@ INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_pa
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (80202, 802, '0,8,802', '数据删除', 'B', NULL, '', NULL, 'form:data:delete', NULL, 1, 2, '', NULL, now(), now(), NULL) ON CONFLICT DO NOTHING;
 
 -- ----------------------------
--- 示例表单入口（预置双入口：内嵌菜单 + 公开外链；与 saveFormMenu 生成的结构完全一致——
---   type=M、component=dynamic-form/render、route_path=formKey、params 携 formKey、
---   route_name 遵循 FormRender+驼峰(formKey) 全局唯一约束，防发布向导重复生成）
--- ----------------------------
+-- 示例表单入口：内嵌菜单 + 公开外链，结构与 saveFormMenu 生成的一致
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (805, 8, '0,8', '表单示例', 'C', '', 'sample', 'Layout', NULL, NULL, 1, 5, 'el-icon-Files', '/dynamic-form/sample/open_source_survey', now(), now(), NULL) ON CONFLICT DO NOTHING;
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (80501, 805, '0,8,805', '开源项目问卷收集', 'M', 'FormRenderOpenSourceSurvey', 'open_source_survey', 'dynamic-form/render', NULL, NULL, 1, 1, 'el-icon-Tickets', NULL, now(), now(), '{"formKey":"open_source_survey"}') ON CONFLICT DO NOTHING;
 INSERT INTO sys_menu (id, parent_id, tree_path, name, type, route_name, route_path, component, perm, keep_alive, visible, sort, icon, redirect, create_time, update_time, params) VALUES (80502, 805, '0,8,805', '活动报名表', 'M', 'FormRenderActivityRegistration', 'activity_registration', 'dynamic-form/render', NULL, NULL, 1, 2, 'el-icon-Calendar', NULL, now(), now(), '{"formKey":"activity_registration"}') ON CONFLICT DO NOTHING;
