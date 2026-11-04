@@ -10,7 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from app.config import settings
 
 
-# ── ORM 声明基类 ──
+# ORM 声明基类
 
 class Base(DeclarativeBase):
     """ORM 声明式基类。"""

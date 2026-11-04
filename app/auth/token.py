@@ -46,9 +46,7 @@ class TokenManager(ABC):
         ...
 
 
-# =====================================================================
 # JWT 实现
-# =====================================================================
 
 class JwtTokenManager(TokenManager):
     """JWT Token 管理器。"""
@@ -169,9 +167,7 @@ class JwtTokenManager(TokenManager):
             logger.info(f"User {user_id} all sessions invalidated")
 
 
-# =====================================================================
 # Redis-Token 实现
-# =====================================================================
 
 class RedisTokenManager(TokenManager):
     """Redis Token 管理器。"""
@@ -254,9 +250,7 @@ class RedisTokenManager(TokenManager):
         return orjson.loads(raw)
 
 
-# =====================================================================
 # 工厂函数
-# =====================================================================
 
 import asyncio
 

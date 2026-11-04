@@ -54,7 +54,7 @@ const searchConfig: CrudSearchConfig = {
 };
 
 const tableConfig: CrudTableConfig<[[ entity_name ]]QueryParams, [[ entity_name ]]Item> = {
-  permissionPrefix: "[[ module_name ]]:[[ entity_kebab ]]",
+  permissionPrefix: "[[ permission_prefix ]]",
   table: { border: true },
   fetchData: [[ entity_name ]]API.getPage,
   deleteByIds: [[ entity_name ]]API.deleteByIds,

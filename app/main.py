@@ -40,27 +40,27 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # ── 中间件（栈式，后添加的在外层）──
+    # 中间件（栈式，后添加的在外层）
     setup_cors(app)
     app.add_middleware(RequestLogMiddleware)
 
-    # ── 限流（IP 滑动窗口 ZSet Lua）──
+    # 限流（IP 滑动窗口 ZSet Lua）
     app.add_middleware(IpRateLimitMiddleware)
 
-    # ── 异常处理 ──
+    # 异常处理
     app.add_exception_handler(BusinessException, business_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, global_exception_handler)
 
-    # ── fastapi-pagination ──
+    # fastapi-pagination
     add_pagination(app)
 
-    # ── 健康检查端点 ──
+    # 健康检查端点
     @app.get("/health", tags=["系统"], summary="健康检查")
     async def health_check():
         return {"status": "ok", "service": "youlai-fastapi"}
 
-    # ── 注册路由 ──
+    # 注册路由
     from app.auth.router import router as auth_router
     from app.auth.qr_code import router as qr_code_router
     from app.system.user.router import router as user_router
@@ -91,7 +91,7 @@ def create_app() -> FastAPI:
     app.include_router(codegen_router)
     app.include_router(wxma_router)
 
-    # ── 实时推送端点 ──
+    # 实时推送端点
     from app.tool.realtime.router import router as realtime_router
     app.include_router(realtime_router)
 

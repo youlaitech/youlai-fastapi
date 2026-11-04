@@ -10,8 +10,9 @@ from app.ai import chat_json, load_prompt
 from app.exceptions import BusinessException
 from app.response import ResultCode
 from app.system.menu.models import SysMenu
-from app.system.role.models import SysRole, SysRoleMenu
 from app.system.menu.schemas import MenuAiFillForm, MenuAiFillVO, MenuCreate, MenuUpdate, MenuVO, RouteVO
+from app.system.role.models import SysRole, SysRoleMenu
+from app.utils import kebab_case
 
 SYSTEM_PROMPT_PATH = "menu/system.md"
 # 同级菜单取样条数，样本只用于让模型沿用既有命名风格
@@ -36,6 +37,11 @@ def normalize_params(value):
         }
         return pairs or None
     return value if isinstance(value, dict) else None
+
+
+def menu_tree_path_of(parent: SysMenu) -> str:
+    """子节点的父节点ID路径（含父不含己），如顶级目录下的菜单得到 0,1。"""
+    return f"{parent.tree_path},{parent.id}" if parent.tree_path else str(parent.id)
 
 
 class MenuService:
@@ -123,7 +129,7 @@ class MenuService:
     async def create(self, form: MenuCreate) -> MenuVO:
         """创建菜单并回填 tree_path 祖先路径；目录/外链的 component 取值规则见内联注释。"""
         # 父级层级校验：按钮只能挂在菜单下，其他类型只能挂在顶级或目录下
-        await self._check_parent(form.type, form.parentId)
+        parent = await self._check_parent(form.type, form.parentId)
 
         # 新增菜单未指定排序时排到同级末尾；显式传 0 时保留 0
         if "sort" not in form.model_fields_set:
@@ -156,7 +162,7 @@ class MenuService:
             component = form.component
         menu = SysMenu(
             parent_id=form.parentId,
-            tree_path="",
+            tree_path=menu_tree_path_of(parent) if parent else "0",
             name=form.name,
             type=form.type,
             route_name=route_name,
@@ -175,19 +181,34 @@ class MenuService:
         self.db.add(menu)
         await self.db.flush()
 
-        if menu.parent_id and menu.parent_id > 0:
-            parent = await self.db.get(SysMenu, menu.parent_id)
-            menu.tree_path = f"{parent.tree_path},{menu.id}" if parent else str(menu.id)
-        else:
-            menu.tree_path = "0"
-        await self.db.flush()
-
         # 新增页面菜单时按需生成增删改查按钮
         if form.generateCrudButtons and form.buttonPermPrefix and form.buttonPermPrefix.strip():
             await self._create_crud_buttons(menu, form.buttonPermPrefix.strip())
 
         logger.info(f"Menu created: {menu.name}")
         return self._to_vo(menu)
+
+    async def add_menu_for_codegen(
+        self, parent_menu_id: int, module_name: str, business_name: str, entity_name: str, perm_prefix: str
+    ) -> None:
+        """代码生成保存配置时创建页面菜单与增删改查按钮；按路由名去重，重复保存不再挂出多份菜单。"""
+        exists = await self.db.execute(select(SysMenu.id).where(SysMenu.route_name == entity_name))
+        if exists.scalar() is not None:
+            return
+
+        entity_kebab = kebab_case(entity_name)
+        await self.create(MenuCreate(
+            parentId=parent_menu_id,
+            name=business_name,
+            type="M",
+            routeName=entity_name,
+            routePath=entity_kebab,
+            component=f"{module_name}/{entity_kebab}/index",
+            keepAlive=1,
+            visible=1,
+            generateCrudButtons=True,
+            buttonPermPrefix=perm_prefix,
+        ))
 
     async def update(self, form: MenuUpdate) -> MenuVO:
         result = await self.db.execute(select(SysMenu).where(SysMenu.id == form.id))
@@ -242,11 +263,9 @@ class MenuService:
         menu.params = form.params
         menu.update_time = datetime.now()
 
-        if menu.parent_id and menu.parent_id > 0:
-            parent = await self.db.get(SysMenu, menu.parent_id)
-            menu.tree_path = f"{parent.tree_path},{menu.id}" if parent else str(menu.id)
-        else:
-            menu.tree_path = "0"
+        # 父级未变更时不重复校验层级（历史遗留的非法层级放行），但 tree_path 始终跟随当前上级
+        parent = await self.db.get(SysMenu, menu.parent_id) if menu.parent_id else None
+        menu.tree_path = menu_tree_path_of(parent) if parent else "0"
 
         await self.db.flush()
         logger.info(f"Menu updated: {menu.name}")
@@ -300,12 +319,12 @@ class MenuService:
         node_list = [self._to_route_with_parent(m) for m in menus]
         return self._build_route_tree(node_list)
 
-    async def _check_parent(self, menu_type: str | None, parent_id: int | None) -> None:
-        """校验上级菜单层级：按钮只能挂在菜单下，其他类型只能挂在顶级或目录下。"""
+    async def _check_parent(self, menu_type: str | None, parent_id: int | None) -> SysMenu | None:
+        """校验上级菜单层级：按钮只能挂在菜单下，其他类型只能挂在顶级或目录下；返回上级菜单供 tree_path 复用。"""
         if not parent_id or parent_id == 0:
             if menu_type == "B":
                 raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="按钮权限只能挂在菜单下")
-            return
+            return None
 
         parent = await self.db.get(SysMenu, parent_id)
         if parent is None:
@@ -316,6 +335,7 @@ class MenuService:
             raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="按钮权限只能挂在菜单下")
         if menu_type != "B" and parent_is_menu:
             raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="菜单下只能挂按钮权限")
+        return parent
 
     async def _next_sort(self, parent_id: int | None) -> int:
         """同级菜单的最大排序 + 1。"""
@@ -332,8 +352,8 @@ class MenuService:
         """生成增删改查按钮权限。"""
         names = ["查询", "新增", "修改", "删除"]
         actions = ["list", "create", "update", "delete"]
-        # 树路径记录祖先链，等于所属菜单的树路径加上所属菜单ID，删除菜单时据此级联
-        button_tree_path = f"{menu.tree_path},{menu.id}" if menu.tree_path else str(menu.id)
+        # 按钮的后代路径 = 所属菜单的祖先路径 + 所属菜单ID，删除菜单时据此级联
+        button_tree_path = menu_tree_path_of(menu)
 
         for index, (name, action) in enumerate(zip(names, actions)):
             self.db.add(SysMenu(

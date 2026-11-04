@@ -6,13 +6,14 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, TemplateError
 from sqlalchemy import text, select, delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai import chat_json, load_prompt
 from app.exceptions import BusinessException
 from app.response import ResultCode
+from app.system.menu.service import MenuService
 from app.tool.codegen.models import GenTable, GenTableColumn
 from app.tool.codegen.schemas import (
     FieldConfigVO,
@@ -22,8 +23,28 @@ from app.tool.codegen.schemas import (
     TableQuery,
     TableVO,
 )
+from app.utils import kebab_case, pluralize_kebab
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+# 默认模块名（前端目录与菜单 component 命名用）与表前缀；权限前缀另经 _PERMISSION_NAMESPACES 映射
+_DEFAULT_MODULE_NAME = "system"
+_DEFAULT_REMOVE_TABLE_PREFIX = "sys_"
+
+# 模块名 → 权限前缀，未配置时用模块名
+_PERMISSION_NAMESPACES = {"system": "sys"}
+
+# BaseIdMixin / TimestampMixin / SoftDeleteMixin 已提供的列，生成模型不再重复声明
+_MIXIN_COLUMNS = ("id", "create_time", "update_time", "is_deleted")
+
+# sqlalchemy 允许的列类型导入白名单，未知类型统一回落 String
+_SA_TYPES = (
+    "String", "Integer", "SmallInteger", "BigInteger", "Text", "Boolean",
+    "DateTime", "Date", "Float", "Numeric", "JSON", "Uuid",
+)
+
+# 可绑定到 HTTP 查询参数的标量类型（dict/list 不能作为 Query 参数）
+_QUERYABLE_PY_TYPES = ("str", "int", "float", "Decimal", "bool", "date", "datetime", "time")
 
 
 def build_ai_user_prompt(config: GenConfigVO, requirement: str | None) -> str:
@@ -126,9 +147,7 @@ def query_type_value(name: str) -> int | None:
     }
     return values.get(name.strip().upper())
 
-# ═══════════════════════════════════════════════════════════
 # PostgreSQL → Python 类型 / SQLAlchemy 类型 / TypeScript 类型
-# ═══════════════════════════════════════════════════════════
 
 _PY_TYPE: dict[str, str] = {
     "int2": "int", "smallint": "int",
@@ -207,9 +226,36 @@ def lower_first(s: str) -> str:
     return s[:1].lower() + s[1:] if s else ""
 
 
-# ═══════════════════════════════════════════════════════════
+def constant_case(s: str) -> str:
+    """PascalCase / snake_case → SCREAMING_SNAKE_CASE，用于接口地址常量命名。"""
+    return kebab_case(s).replace("-", "_")
+
+
+def trim_table_prefix(table_name: str, remove_prefix: str) -> str:
+    """去掉表前缀，避免 sys_article 推导出 SysArticle 这类把模块名重复进实体名的结果。"""
+    if remove_prefix and table_name.startswith(remove_prefix):
+        return table_name[len(remove_prefix):]
+    return table_name
+
+
+def resolve_perm_prefix(module_name: str, entity_name: str) -> str:
+    """权限标识前缀（如 sys:article）：后端守卫、前端 v-hasPerm、菜单按钮权限共用同一个值。"""
+    namespace = _PERMISSION_NAMESPACES.get(module_name, module_name)
+    return f"{namespace}:{kebab_case(entity_name)}"
+
+
+def type_import_lines(py_types: set[str]) -> list[str]:
+    """按用到的 Python 类型生成标准库导入行，避免生成无用 import。"""
+    datetime_types = [t for t in ("date", "datetime", "time") if t in py_types]
+    lines = []
+    if "Decimal" in py_types:
+        lines.append("from decimal import Decimal")
+    if datetime_types:
+        lines.append(f"from datetime import {', '.join(datetime_types)}")
+    return lines
+
+
 # Jinja2 环境
-# ═══════════════════════════════════════════════════════════
 
 def _jinja_env() -> Environment:
     """前端模板使用 [[ ]] 分隔符避免 Vue {{ }} 冲突。"""
@@ -223,16 +269,14 @@ def _jinja_env() -> Environment:
     return env
 
 
-# ═══════════════════════════════════════════════════════════
 # 服务
-# ═══════════════════════════════════════════════════════════
 
 class CodegenService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    # ── 表列表 ──
+    # 表列表
 
     async def get_table_page(self, query: TableQuery) -> dict:
         where = ["t.table_schema = current_schema()", "t.table_type = 'BASE TABLE'",
@@ -266,7 +310,7 @@ class CodegenService:
         ]
         return {"list": records, "total": total}
 
-    # ── 列元数据 ──
+    # 列元数据
 
     async def _get_columns(self, table_name: str) -> list[dict]:
         sql = """
@@ -305,14 +349,14 @@ class CodegenService:
             raise BusinessException(code=ResultCode.USER_REQUEST_PARAMETER_ERROR, msg=f"表 {table_name} 不存在或无字段")
         return cols
 
-    # ── 模板上下文构造 ──
+    # 模板上下文构造
 
     def _build_field_meta(self, col: dict, saved_col: GenTableColumn | None = None) -> dict:
         py_type = pg_to_python(col["udt"])
         ts_type = py_to_ts(py_type)
         sa = pg_to_sa(col["udt"])
 
-        is_non_sys = col["name"] not in ("id", "create_time", "update_time", "is_deleted")
+        is_non_sys = col["name"] not in _MIXIN_COLUMNS
         field_name = saved_col.field_name if saved_col else col["name"]
         field_type = (saved_col.field_type or py_type) if saved_col else py_type
 
@@ -332,15 +376,20 @@ class CodegenService:
 
         default_query = "LIKE" if py_type == "str" else "EQ"
 
+        # JSON 等非标量列不能作为查询参数绑定，不默认参与查询
+        is_queryable = is_non_sys and py_type in _QUERYABLE_PY_TYPES
         is_show_list = saved_col.is_show_in_list != 0 if saved_col else (not col["is_pk"] and is_non_sys)
-        is_show_form = saved_col.is_show_in_form != 0 if saved_col else (not col["is_pk"])
-        is_show_query = saved_col.is_show_in_query != 0 if saved_col else (not col["is_pk"] and is_non_sys)
+        is_show_form = saved_col.is_show_in_form != 0 if saved_col else (not col["is_pk"] and is_non_sys)
+        is_show_query = (saved_col.is_show_in_query != 0 if saved_col else not col["is_pk"]) and is_queryable
         is_required = saved_col.is_required == 1 if saved_col else (not col["is_nullable"] and not col["is_pk"])
         ft_name = form_type_name(saved_col.form_type) if saved_col else default_form
         qt_name = query_type_name(saved_col.query_type) if saved_col else default_query
+        # BETWEEN / IN 由前端传重复参数，接收类型是列表
+        query_py_type = f"list[{py_type}]" if qt_name in ("BETWEEN", "IN") else py_type
 
         return {
             "column_name": col["name"],
+            "inherited_by_mixin": col["name"] in _MIXIN_COLUMNS,
             "field_name": field_name,
             "field_type": field_type,
             "field_comment": (saved_col.field_comment or col["comment"]) if saved_col else col["comment"],
@@ -355,18 +404,25 @@ class CodegenService:
             "is_show_in_query": is_show_query,
             "form_type_name": ft_name,
             "query_type_name": qt_name,
+            "query_py_type": query_py_type,
+            "ts_query_type": "[string, string]" if qt_name == "BETWEEN" else ts_type,
             "dict_type": (saved_col.dict_type or "") if saved_col else "",
             "max_length": saved_col.max_length if saved_col else None,
         }
 
     async def _build_template_context(self, table_name: str) -> dict:
         raw_cols = await self._get_columns(table_name)
-        entity_name = pascal_case(table_name)
+        pk = next((c["name"] for c in raw_cols if c["is_pk"]), None)
+        if pk != "id":
+            raise BusinessException(
+                code=ResultCode.OPERATE_DENIED,
+                msg=f"表 {table_name} 的主键为 {pk or '无'}，代码生成要求主键命名为 id",
+            )
+        entity_name = pascal_case(trim_table_prefix(table_name, _DEFAULT_REMOVE_TABLE_PREFIX))
         entity_lower = lower_first(entity_name)
-        module_name = table_name.split("_")[0] if "_" in table_name else "app"
-        entity_kebab = table_name.replace("_", "-")
-        entity_upper_snake = table_name.upper()
-        pk = next((c["name"] for c in raw_cols if c["is_pk"]), "id")
+        module_name = _DEFAULT_MODULE_NAME
+        entity_kebab = kebab_case(entity_name)
+        entity_upper_snake = constant_case(entity_name)
 
         ctx = {
             "table_name": table_name,
@@ -374,17 +430,10 @@ class CodegenService:
             "entity_lower": entity_lower,
             "module_name": module_name,
             "entity_kebab": entity_kebab,
+            "entity_kebab_plural": pluralize_kebab(entity_name),
             "entity_upper_snake": entity_upper_snake,
-            "pk_name": pk,
+            "permission_prefix": resolve_perm_prefix(module_name, entity_name),
             "business_name": entity_name,
-            "entity_comment": entity_name,
-            "package_name": "com.youlai.fastapi",
-            "author": "youlai-fastapi",
-            "has_datetime": False,
-            "has_date": False,
-            "has_time": False,
-            "has_json": False,
-            "has_decimal": False,
             "sa_imports": set(),
             "columns": [],
         }
@@ -395,42 +444,37 @@ class CodegenService:
         if gt:
             ctx["entity_name"] = gt.entity_name
             ctx["module_name"] = gt.module_name or ctx["module_name"]
-            ctx["package_name"] = gt.package_name
-            ctx["author"] = gt.author
             ctx["business_name"] = gt.business_name
-            ctx["entity_comment"] = gt.business_name
             ctx["entity_lower"] = lower_first(gt.entity_name)
-            ctx["entity_kebab"] = gt.entity_name.lower()
+            ctx["entity_kebab"] = kebab_case(gt.entity_name)
+            ctx["entity_kebab_plural"] = pluralize_kebab(gt.entity_name)
+            ctx["entity_upper_snake"] = constant_case(gt.entity_name)
+            ctx["permission_prefix"] = resolve_perm_prefix(ctx["module_name"], ctx["entity_name"])
             rows = (await self.db.execute(
                 select(GenTableColumn).where(GenTableColumn.table_id == gt.id).order_by(GenTableColumn.field_sort)
             )).scalars().all()
             saved_cols = {sc.column_name: sc for sc in rows if sc.column_name}
 
         for col in raw_cols:
-            sc = saved_cols.get(col["name"])
-            meta = self._build_field_meta(col, sc)
+            meta = self._build_field_meta(col, saved_cols.get(col["name"]))
             ctx["columns"].append(meta)
-            py = meta["py_type"]
-            sa = meta["sa_column"]
-            if py == "datetime":
-                ctx["has_datetime"] = True
-            if py == "date":
-                ctx["has_date"] = True
-            if py == "time":
-                ctx["has_time"] = True
-            if py == "Decimal":
-                ctx["has_decimal"] = True
-            if "json" in col["udt"]:
-                ctx["has_json"] = True
-            sa_name = sa.split("(")[0]
-            if sa_name not in ("String", "Integer", "SmallInteger", "BigInteger", "Text", "Boolean", "DateTime", "Date", "Float", "Numeric", "JSON", "Uuid"):
-                sa_name = "String"
-            ctx["sa_imports"].add(sa_name)
+            if not meta["is_pk"] and not meta["inherited_by_mixin"]:
+                sa_name = meta["sa_column"].split("(")[0]
+                ctx["sa_imports"].add(sa_name if sa_name in _SA_TYPES else "String")
 
         ctx["sa_imports"] = sorted(ctx["sa_imports"])
+        ctx["model_import_lines"] = type_import_lines({
+            m["py_type"] for m in ctx["columns"] if not m["is_pk"] and not m["inherited_by_mixin"]
+        })
+        ctx["schema_import_lines"] = type_import_lines({
+            m["py_type"] for m in ctx["columns"] if not m["is_pk"] or m["is_show_in_query"]
+        })
+        ctx["router_import_lines"] = type_import_lines({
+            m["py_type"] for m in ctx["columns"] if m["is_show_in_query"]
+        })
         return ctx
 
-    # ── 配置 CRUD ──
+    # 配置 CRUD
 
     async def get_gen_config(self, table_name: str) -> GenConfigVO:
         gt = (await self.db.execute(select(GenTable).where(GenTable.table_name == table_name))).scalar_one_or_none()
@@ -446,47 +490,40 @@ class CodegenService:
         field_configs = []
         for col in raw_cols:
             sc = saved_cols.get(col["name"])
-            py_type = pg_to_python(col["udt"])
-            ts = py_to_ts(py_type)
-            field_name = sc.field_name if sc else col["name"]
-            field_type = (sc.field_type or py_type) if sc else py_type
-            if sc:
-                ts = py_to_ts(field_type)
-
+            meta = self._build_field_meta(col, sc)
             field_configs.append(FieldConfigVO(
-                columnName=col["name"],
-                columnType=f"{col['udt']}",
-                columnComment=(sc.field_comment or col["comment"]) if sc else col["comment"],
+                columnName=meta["column_name"],
+                columnType=col["udt"],
+                columnComment=meta["field_comment"],
                 isNullable="YES" if col["is_nullable"] else "NO",
-                is_pk=col["is_pk"],
-                column_key="PRI" if col["is_pk"] else "",
-                fieldName=field_name,
-                fieldType=field_type,
-                tsType=ts,
-                isShowInList=sc.is_show_in_list if sc else (1 if not col["is_pk"] and col["name"] not in ("id", "create_time", "update_time", "is_deleted") else 0),
-                isShowInForm=sc.is_show_in_form if sc else (1 if not col["is_pk"] else 0),
-                isShowInQuery=sc.is_show_in_query if sc else (1 if not col["is_pk"] and col["name"] not in ("id", "create_time", "update_time", "is_deleted") else 0),
-                isRequired=(sc.is_required or 0) if sc else (1 if not col["is_nullable"] and not col["is_pk"] else 0),
-                formType=sc.form_type if sc else _FORM_TYPE.get(
-                    "SWITCH" if "status" in field_name else "DATE_TIME" if any(k in field_name for k in ("time", "date"))
-                    else "INPUT_NUMBER" if py_type in ("float", "int", "Decimal") else "SWITCH" if py_type == "bool" else "INPUT", 0),
-                queryType=sc.query_type if sc else _QUERY_TYPE.get("LIKE" if py_type == "str" else "EQ", 0),
-                dictType=sc.dict_type if sc else None,
-                maxLength=sc.max_length if sc else None,
+                is_pk=meta["is_pk"],
+                column_key="PRI" if meta["is_pk"] else "",
+                fieldName=meta["field_name"],
+                fieldType=meta["field_type"],
+                tsType=meta["ts_type"],
+                isShowInList=1 if meta["is_show_in_list"] else 0,
+                isShowInForm=1 if meta["is_show_in_form"] else 0,
+                isShowInQuery=1 if meta["is_show_in_query"] else 0,
+                isRequired=1 if meta["is_required"] else 0,
+                formType=_FORM_TYPE.get(meta["form_type_name"], 0),
+                queryType=_QUERY_TYPE.get(meta["query_type_name"], 0),
+                dictType=meta["dict_type"] or None,
+                maxLength=meta["max_length"],
                 fieldSort=sc.field_sort if sc else None,
             ))
 
+        default_entity = pascal_case(trim_table_prefix(table_name, _DEFAULT_REMOVE_TABLE_PREFIX))
         return GenConfigVO(
             id=gt.id if gt else None,
             tableName=table_name,
-            businessName=gt.business_name if gt else pascal_case(table_name),
-            moduleName=gt.module_name if gt else table_name.split("_")[0] if "_" in table_name else "app",
+            businessName=gt.business_name if gt else default_entity,
+            moduleName=gt.module_name if gt else _DEFAULT_MODULE_NAME,
             packageName=gt.package_name if gt else "com.youlai.fastapi",
-            entityName=gt.entity_name if gt else pascal_case(table_name),
+            entityName=gt.entity_name if gt else default_entity,
             author=gt.author if gt else "youlai-fastapi",
             parentMenuId=gt.parent_menu_id if gt else None,
             pageType=gt.page_type if gt else "classic",
-            removeTablePrefix=gt.remove_table_prefix if gt else None,
+            removeTablePrefix=gt.remove_table_prefix if gt else _DEFAULT_REMOVE_TABLE_PREFIX,
             fieldConfigs=field_configs,
         )
 
@@ -504,12 +541,17 @@ class CodegenService:
 
     async def save_gen_config(self, table_name: str, form: GenConfigForm) -> None:
         gt = (await self.db.execute(select(GenTable).where(GenTable.table_name == table_name))).scalar_one_or_none()
+        # 实体名兜底统一去表前缀，避免 SysArticle 这类把模块名重复进实体名、权限串变成 sys:sys-article
+        default_entity = pascal_case(
+            trim_table_prefix(table_name, form.remove_table_prefix or _DEFAULT_REMOVE_TABLE_PREFIX)
+        )
+        default_module = form.module_name or _DEFAULT_MODULE_NAME
 
         if gt:
-            gt.module_name = form.module_name
+            gt.module_name = default_module
             gt.package_name = form.package_name or "com.youlai.fastapi"
             gt.business_name = form.business_name or table_name
-            gt.entity_name = form.entity_name or pascal_case(table_name)
+            gt.entity_name = form.entity_name or default_entity
             gt.author = form.author or "youlai-fastapi"
             gt.parent_menu_id = form.parent_menu_id
             gt.remove_table_prefix = form.remove_table_prefix
@@ -519,10 +561,10 @@ class CodegenService:
         else:
             gt = GenTable(
                 table_name=table_name,
-                module_name=form.module_name,
+                module_name=default_module,
                 package_name=form.package_name or "com.youlai.fastapi",
                 business_name=form.business_name or table_name,
-                entity_name=form.entity_name or pascal_case(table_name),
+                entity_name=form.entity_name or default_entity,
                 author=form.author or "youlai-fastapi",
                 parent_menu_id=form.parent_menu_id,
                 remove_table_prefix=form.remove_table_prefix,
@@ -531,7 +573,6 @@ class CodegenService:
             self.db.add(gt)
             await self.db.flush()
 
-        # 删除旧字段配置
         await self.db.execute(sa_delete(GenTableColumn).where(GenTableColumn.table_id == gt.id))
 
         # 插入新字段配置
@@ -557,6 +598,16 @@ class CodegenService:
                 self.db.add(col)
                 await self.db.flush()
 
+        # 选了上级菜单就同步生成页面菜单与按钮权限，权限前缀与模板守卫同源；失败随事务回滚，不留「有配置无权限」的半成品
+        if form.parent_menu_id and form.parent_menu_id > 0:
+            await MenuService(self.db).add_menu_for_codegen(
+                form.parent_menu_id,
+                gt.module_name,
+                gt.business_name,
+                gt.entity_name,
+                resolve_perm_prefix(gt.module_name, gt.entity_name),
+            )
+
     async def delete_gen_config(self, table_name: str) -> None:
         gt = (await self.db.execute(select(GenTable).where(GenTable.table_name == table_name))).scalar_one_or_none()
         if gt:
@@ -564,7 +615,7 @@ class CodegenService:
             await self.db.delete(gt)
             await self.db.flush()
 
-    # ── 预览 / 下载 ──
+    # 预览 / 下载
 
     async def preview_code(self, table_name: str, page_type: str, frontend_type: str) -> list[PreviewVO]:
         ctx = await self._build_template_context(table_name)
@@ -593,60 +644,44 @@ class CodegenService:
 
     def _render_files(self, ctx: dict, page_type: str, frontend_type: str) -> list[dict]:
         env = _jinja_env()
-        out: list[dict] = []
         fe = "vue3-element-admin"
         api_path = f"{fe}/src/api/{ctx['module_name']}/{ctx['entity_kebab']}"
         view_path = f"{fe}/src/views/{ctx['module_name']}/{ctx['entity_kebab']}"
-        base_path = f"src/modules/{ctx['module_name']}/{ctx['entity_lower']}"
+        base_path = f"app/{ctx['module_name']}/{ctx['entity_lower']}"
+
         is_js = frontend_type == "js"
-
-        # 后端模板
-        for tpl, fname in [
-            ("backend/router.py.j2", "router.py"),
-            ("backend/service.py.j2", "service.py"),
-            ("backend/schemas.py.j2", "schemas.py"),
-            ("backend/models.py.j2", "models.py"),
-        ]:
-            try:
-                tmpl = env.get_template(tpl)
-                content = tmpl.render(**ctx)
-                ext = fname.rsplit(".", 1)[-1]
-                out.append({"path": base_path, "file_name": fname, "content": content,
-                             "scope": "backend", "language": ext})
-            except Exception:
-                pass  # 模板缺失时跳过
-
-        # 前端模板：crud 页面使用封装版模板
         is_crud = str(page_type or "").strip().lower() == "crud"
+        suffix = "js" if is_js else "ts"
         view_tpl = "index.crud.vue.j2" if is_crud else "index.vue.j2"
-        if is_js:
-            for tpl, fname in [
-                ("frontend/js/api.js.j2", "index.js"),
-                (f"frontend/js/{view_tpl}", "index.vue"),
-            ]:
-                try:
-                    tmpl = env.get_template(tpl)
-                    content = tmpl.render(**ctx)
-                    ext = fname.rsplit(".", 1)[-1]
-                    p = api_path if fname.endswith(".js") else view_path
-                    out.append({"path": p, "file_name": fname, "content": content,
-                                 "scope": "frontend", "language": ext})
-                except Exception:
-                    pass
-        else:
-            for tpl, fname in [
-                ("frontend/ts/api.ts.j2", "index.ts"),
-                ("frontend/ts/types.ts.j2", "types.ts"),
-                (f"frontend/ts/{view_tpl}", "index.vue"),
-            ]:
-                try:
-                    tmpl = env.get_template(tpl)
-                    content = tmpl.render(**ctx)
-                    ext = fname.rsplit(".", 1)[-1]
-                    p = view_path if fname.endswith(".vue") else api_path
-                    out.append({"path": p, "file_name": fname, "content": content,
-                                 "scope": "frontend", "language": ext})
-                except Exception:
-                    pass
 
-        return out
+        plan = [
+            ("backend/router.py.j2", "router.py", base_path, "backend"),
+            ("backend/service.py.j2", "service.py", base_path, "backend"),
+            ("backend/schemas.py.j2", "schemas.py", base_path, "backend"),
+            ("backend/models.py.j2", "models.py", base_path, "backend"),
+            (f"frontend/{suffix}/api.{suffix}.j2", f"index.{suffix}", api_path, "frontend"),
+            (f"frontend/{suffix}/{view_tpl}", "index.vue", view_path, "frontend"),
+        ]
+        if not is_js:
+            plan.insert(-1, ("frontend/ts/types.ts.j2", "types.ts", api_path, "frontend"))
+
+        return [
+            {
+                "path": path,
+                "file_name": fname,
+                "content": self._render_template(env, tpl, ctx),
+                "scope": scope,
+                "language": fname.rsplit(".", 1)[-1],
+            }
+            for tpl, fname, path, scope in plan
+        ]
+
+    @staticmethod
+    def _render_template(env: Environment, tpl: str, ctx: dict) -> str:
+        """模板缺失或语法错误都立即失败，不返回半套生成代码。"""
+        try:
+            return env.get_template(tpl).render(**ctx)
+        except TemplateError as e:
+            raise BusinessException(
+                code=ResultCode.SYSTEM_ERROR, msg=f"模板 {tpl} 渲染失败: {e}"
+            ) from e

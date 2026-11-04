@@ -3,7 +3,6 @@
 from pydantic import BaseModel, Field
 
 
-# ── 查询参数 ──
 
 
 class TableQuery(BaseModel):
@@ -21,7 +20,7 @@ class PreviewQuery(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# ── VO ──
+# VO
 
 
 class TableVO(BaseModel):
@@ -82,7 +81,7 @@ class PreviewVO(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# ── 请求体 ──
+# 请求体
 
 
 class FieldConfigForm(BaseModel):

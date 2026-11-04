@@ -37,8 +37,8 @@
     <el-card ref="tableWrapperRef" class="page-content" shadow="never">
       <div class="page-toolbar">
         <div class="page-toolbar__left">
-          <el-button v-hasPerm="['[[ module_name ]]:[[ entity_kebab ]]:create']" type="primary" @click="handleCreateClick()">新增</el-button>
-          <el-button v-hasPerm="['[[ module_name ]]:[[ entity_kebab ]]:delete']" type="danger" :disabled="!hasSelection" @click="handleBatchDelete()">删除</el-button>
+          <el-button v-hasPerm="['[[ permission_prefix ]]:create']" type="primary" @click="handleCreateClick()">新增</el-button>
+          <el-button v-hasPerm="['[[ permission_prefix ]]:delete']" type="danger" :disabled="!hasSelection" @click="handleBatchDelete()">删除</el-button>
         </div>
         <div class="page-toolbar__right">
           <el-tooltip content="刷新" placement="top">
@@ -61,8 +61,8 @@
 {% else %}        <el-table-column key="[[ c.field_name ]]" label="[[ c.field_comment ]]" prop="[[ c.field_name ]]" min-width="150" align="center" />
 {% endif %}{% endif %}{% endfor %}        <el-table-column fixed="right" label="操作" width="180">
           <template #default="scope">
-            <el-button v-hasPerm="['[[ module_name ]]:[[ entity_kebab ]]:update']" type="primary" size="small" link @click="handleEditClick(String(scope.row.id))">编辑</el-button>
-            <el-button v-hasPerm="['[[ module_name ]]:[[ entity_kebab ]]:delete']" type="danger" size="small" link @click="handleDelete(String(scope.row.id))">删除</el-button>
+            <el-button v-hasPerm="['[[ permission_prefix ]]:update']" type="primary" size="small" link @click="handleEditClick(String(scope.row.id))">编辑</el-button>
+            <el-button v-hasPerm="['[[ permission_prefix ]]:delete']" type="danger" size="small" link @click="handleDelete(String(scope.row.id))">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -126,8 +126,7 @@ const dataFormRef = ref<FormInstance>();
 const tableWrapperRef = ref<HTMLElement | null>(null);
 const { toggle: toggleFullscreen } = useFullscreen(tableWrapperRef);
 
-const initialFormData = reactive({} as [[ entity_name ]]Form);
-Object.assign(initialFormData, {} as [[ entity_name ]]Form);
+const initialFormData: [[ entity_name ]]Form = {};
 
 const { loading, list, total, params, fetchData, handleQuery, handleResetQuery } = usePageTable<
   [[ entity_name ]]Item,
@@ -148,24 +147,29 @@ const dialog = reactive({
   visible: false,
 });
 
-const formData = reactive<[[ entity_name ]]Form>({} as [[ entity_name ]]Form);
+const formData = reactive<[[ entity_name ]]Form>({ ...initialFormData });
 
-const rules: FormRules = {
+const rules: FormRules<[[ entity_name ]]Form> = {
 {% for c in columns %}{% if c.is_show_in_form and c.is_required %}  [[ c.field_name ]]: [{ required: true, message: "请输入[[ c.field_comment ]]", trigger: "blur" }],
-{% endif %}{% endfor %}
-};
+{% endif %}{% endfor %}};
 
-function openDialog(): void { dialog.visible = true; }
-function closeDialog(): void { dialog.visible = false; resetForm(); }
+function openDialog(): void {
+  dialog.visible = true;
+}
+
+function closeDialog(): void {
+  dialog.visible = false;
+  resetForm();
+}
 
 function resetForm(): void {
   dataFormRef.value?.resetFields();
   dataFormRef.value?.clearValidate();
-  Object.keys(formData).forEach((key) => { delete (formData as Record<string, unknown>)[key]; });
+  Object.keys(formData).forEach((key) => delete (formData as Record<string, unknown>)[key]);
   Object.assign(formData, initialFormData);
 }
 
-async function handleCreateClick(): Promise<void> {
+function handleCreateClick(): void {
   dialog.title = "新增[[ business_name ]]";
   openDialog();
 }
@@ -196,17 +200,28 @@ async function handleSubmit(): Promise<void> {
   }
 }
 
-function handleBatchDelete(): void { handleDelete(); }
+function handleBatchDelete(): void {
+  handleDelete();
+}
 
 async function handleDelete(id?: string): Promise<void> {
-  const ids = id || selectedIds.value.join(",");
-  if (!ids) { ElMessage.warning("请勾选删除项"); return; }
+  const ids = id ?? selectedIds.value.join(",");
+  if (!ids) {
+    ElMessage.warning("请勾选删除项");
+    return;
+  }
+
   try {
-    await ElMessageBox.confirm("确认删除已选中的数据项?", "警告", { confirmButtonText: "确定", cancelButtonText: "取消", type: "warning" });
+    await ElMessageBox.confirm("确认删除已选中的数据项?", "警告", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning",
+    });
   } catch {
     ElMessage.info("已取消删除");
     return;
   }
+
   loading.value = true;
   try {
     await [[ entity_name ]]API.deleteByIds(ids);
@@ -217,5 +232,5 @@ async function handleDelete(id?: string): Promise<void> {
   }
 }
 
-onMounted(() => { handleQuery(); });
+onMounted(() => handleQuery());
 </script>

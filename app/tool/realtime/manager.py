@@ -56,6 +56,18 @@ async def send_to_user(username: str, type_: str, payload: Any) -> None:
     await redis.publish(user_channel(username), encode(type_, payload))
 
 
+async def mark_online(username: str) -> None:
+    """登记在线用户"""
+    redis = await get_redis()
+    await redis.sadd(_ONLINE_SET, username)
+
+
+async def mark_offline(username: str) -> None:
+    """注销在线用户"""
+    redis = await get_redis()
+    await redis.srem(_ONLINE_SET, username)
+
+
 async def mark_connection_opened(connection_id: int) -> None:
     """登记一条在线连接"""
     redis = await get_redis()

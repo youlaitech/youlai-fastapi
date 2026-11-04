@@ -1,17 +1,18 @@
 import request from "@/utils/request";
 
-const [[ entity_upper_snake ]]_BASE_URL = "/api/v1/[[ entity_kebab ]]";
+const [[ entity_upper_snake ]]_BASE_URL = "/api/v1/[[ entity_kebab_plural ]]";
 
 const [[ entity_name ]]API = {
   /** 获取[[ business_name ]]分页数据 */
   getPage(queryParams) {
     return request({
-      url: `${[[ entity_upper_snake ]]_BASE_URL}`,
+      url: [[ entity_upper_snake ]]_BASE_URL,
       method: "get",
       params: queryParams,
     });
   },
 
+  /** 获取[[ business_name ]]表单数据 */
   getFormData(id) {
     return request({
       url: `${[[ entity_upper_snake ]]_BASE_URL}/${id}/form`,
@@ -19,27 +20,19 @@ const [[ entity_name ]]API = {
     });
   },
 
+  /** 新增[[ business_name ]] */
   create(data) {
-    return request({
-      url: `${[[ entity_upper_snake ]]_BASE_URL}`,
-      method: "post",
-      data,
-    });
+    return request({ url: [[ entity_upper_snake ]]_BASE_URL, method: "post", data });
   },
 
+  /** 修改[[ business_name ]] */
   update(id, data) {
-    return request({
-      url: `${[[ entity_upper_snake ]]_BASE_URL}/${id}`,
-      method: "put",
-      data,
-    });
+    return request({ url: `${[[ entity_upper_snake ]]_BASE_URL}/${id}`, method: "put", data });
   },
 
+  /** 批量删除[[ business_name ]]，多个以英文逗号(,)分割 */
   deleteByIds(ids) {
-    return request({
-      url: `${[[ entity_upper_snake ]]_BASE_URL}/${ids}`,
-      method: "delete",
-    });
+    return request({ url: `${[[ entity_upper_snake ]]_BASE_URL}/${ids}`, method: "delete" });
   },
 };
 

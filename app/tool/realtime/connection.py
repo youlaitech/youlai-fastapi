@@ -20,7 +20,7 @@ from app.tool.realtime.manager import (
 from app.tool.realtime.manager import mark_connection_closed, mark_connection_opened
 from app.tool.realtime.topics import CONNECTION_READY, HEARTBEAT_PING, HEARTBEAT_PONG, HEARTBEAT_TIMEOUT_MS
 
-# 心跳间隔与超时，与 youlai-boot 保持一致
+# 心跳间隔与应答超时（秒）
 _PING_INTERVAL = 25
 _PONG_TIMEOUT = 60
 

@@ -226,7 +226,7 @@ async def import_users(
     return Result(data=ExcelResultVO(**result))
 
 
-# ── 路径参数端点（最后注册）──
+# 路径参数端点（最后注册）
 
 @router.post("", summary="创建用户", dependencies=[Depends(require_perm("sys:user:create"))])
 async def create_user(

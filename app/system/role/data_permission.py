@@ -29,7 +29,7 @@ from app.auth.schemas import SysUserDetails
 from app.system.dept.models import SysDept
 
 
-# ── 跳过判断 ──
+# 跳过判断
 
 def _should_skip(user: SysUserDetails | None) -> bool:
     """超管 / 未登录 / 角色含 ALL → 不附加过滤。"""
@@ -50,7 +50,7 @@ def _has_all_data_scope(user: SysUserDetails) -> bool:
     )
 
 
-# ── 单个角色条件 ──
+# 单个角色条件
 
 def _build_role_expression(
     dept_col: ColumnElement | None,
@@ -102,7 +102,7 @@ def _build_role_expression(
     return None
 
 
-# ── 多角色并集 ──
+# 多角色并集
 
 def _build_union_expression(
     dept_col: ColumnElement | None,
@@ -122,7 +122,7 @@ def _build_union_expression(
     return union
 
 
-# ── 公共 API ──
+# 公共 API
 
 def build_data_scope_filters(
     user: SysUserDetails | None,

@@ -16,6 +16,7 @@ from app.system.form.schemas import (
     FormDefinitionPageVO, FormMenuSave, FormMenuVO, FormRenderVO,
 )
 from app.system.menu.models import SysMenu
+from app.system.menu.service import menu_tree_path_of
 
 logger = logging.getLogger(__name__)
 
@@ -370,10 +371,6 @@ class FormService:
     # ── 访问菜单 ──────────────────────────────────────────────
 
     @staticmethod
-    def _catalog_tree_path(parent: SysMenu) -> str:
-        return f"{parent.tree_path},{parent.id}" if parent.tree_path else str(parent.id)
-
-    @staticmethod
     def _to_upper_camel(value: str) -> str:
         return "".join(part[:1].upper() + part[1:] for part in value.split("_") if part)
 
@@ -411,7 +408,7 @@ class FormService:
         )
         admin_catalog = rows.scalars().first()
         if admin_catalog:
-            parent_id, tree_path = admin_catalog.id, self._catalog_tree_path(admin_catalog)
+            parent_id, tree_path = admin_catalog.id, menu_tree_path_of(admin_catalog)
             route_path = "center"
         else:
             parent_id, tree_path, route_path = 0, "0", "/form-center"
@@ -437,7 +434,7 @@ class FormService:
             parent = await self._ensure_default_catalog()
 
         route_name = "FormRender" + self._to_upper_camel(obj.form_key)
-        tree_path = self._catalog_tree_path(parent)
+        tree_path = menu_tree_path_of(parent)
 
         # 已生成过时走更新语义（幂等）
         existing = None
