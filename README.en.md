@@ -1,56 +1,31 @@
 <div align="center">
 
+# <img alt="youlai-fastapi" width="40" height="40" src="./docs/images/logo/logo.png" align="center"> youlai-fastapi
 
+**Python 3.11 + FastAPI 0.115 Enterprise-Grade Permission Management Backend**
 
-# <img alt="youlai-fastapi" width="28" src="./docs/images/logo/logo.png" align="center"> youlai-fastapi
-
-
-
-**Enterprise-grade permission management backend based on FastAPI (Python)**
-
-
+<br>
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-
 [![Redis](https://img.shields.io/badge/Redis-7.x-DC382D?logo=redis&logoColor=white)](https://redis.io/)
-
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?logo=apache)](LICENSE)
-
 [![Gitee Star](https://gitee.com/youlaiorg/youlai-fastapi/badge/star.svg)](https://gitee.com/youlaiorg/youlai-fastapi/stargazers)
-
 [![GitHub Star](https://img.shields.io/github/stars/youlaitech/youlai-fastapi?style=social)](https://github.com/youlaitech/youlai-fastapi)
-
-
 
 </div>
 
-
-
-![](./docs/images/rainbow.png "rainbow.png")
-
-
+<p align="center"><img src="./docs/images/rainbow.png" alt="rainbow"></p>
 
 <div align="center">
 
-
-
-[![Live Preview](https://img.shields.io/badge/Live%20Preview-2D8CF0?style=for-the-badge&logo=google-chrome&logoColor=white)](https://vue.youlai.tech)
-
-[![Mobile Preview](https://img.shields.io/badge/Mobile%20Preview-19BE6B?style=for-the-badge&logo=android&logoColor=white)](https://app.youlai.tech)
-
-[![Documentation](https://img.shields.io/badge/Documentation-8B5CF6?style=for-the-badge&logo=gitbook&logoColor=white)](https://www.youlai.tech/docs/server/spring-boot/)
-
-[![简体中文](https://img.shields.io/badge/简体中文-00B4D8?style=for-the-badge&logo=google-translate&logoColor=white)](./README.md)
-
-
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-2D8CF0?style=for-the-badge\&logo=google-chrome\&logoColor=white)](https://admin.youlai.tech)
+[![Mobile Demo](https://img.shields.io/badge/Mobile%20Demo-19BE6B?style=for-the-badge\&logo=android\&logoColor=white)](https://app.youlai.tech)
+[![Documentation](https://img.shields.io/badge/Documentation-8B5CF6?style=for-the-badge\&logo=gitbook\&logoColor=white)](https://www.youlai.tech/docs/server/spring-boot/)
+[![简体中文](https://img.shields.io/badge/简体中文-00B4D8?style=for-the-badge\&logo=google-translate\&logoColor=white)](./README.md)
 
 </div>
-
-
 
 ## Introduction
 
@@ -346,7 +321,7 @@ AI_API_KEY=sk-xxx
 
 | 📖 Full docs site | [www.youlai.tech](https://www.youlai.tech/) |
 
-| 🖥️ PC live preview | [vue.youlai.tech](https://vue.youlai.tech) |
+| 🖥️ PC live preview | [admin.youlai.tech](https://admin.youlai.tech) |
 
 | 📱 Mobile live preview | [app.youlai.tech](https://app.youlai.tech) |
 
