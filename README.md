@@ -1,6 +1,6 @@
 <div align="center">
 
-# <img alt="youlai-fastapi" width="40" height="40" src="./docs/images/logo/logo.png" align="center"> youlai-fastapi
+# <img alt="youlai-fastapi" width="40" height="40" src="./docs/images/logo/logo.png" valign="middle"> youlai-fastapi
 
 **Python 3.11 + FastAPI 0.115 企业级权限管理系统后端**
 
