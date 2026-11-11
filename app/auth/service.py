@@ -1,5 +1,7 @@
 """认证服务。"""
 
+import secrets
+
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
@@ -9,8 +11,15 @@ from app.auth.utils import verify_password
 from app.auth.schemas import SecurityUser, SysUserDetails
 from app.auth.token import get_token_manager
 from app.exceptions import BusinessException
+from app.redis import get_redis
 from app.response import ResultCode
 from app.system.user.models import SysUser
+
+SMS_CODE_TTL = 300
+
+
+def _sms_code_key(mobile: str) -> str:
+    return f"sms:login:{mobile.strip()}"
 
 
 class AuthService:
@@ -34,8 +43,15 @@ class AuthService:
         return await self._build_token(user)
 
     async def login_by_sms(self, mobile: str, code: str) -> dict:
-        """短信验证码登录。"""
-        # TODO: 接入真实短信验证码校验
+        """短信验证码登录：校验一次性验证码，通过后立即删除。"""
+        redis = await get_redis()
+        cached = await redis.get(_sms_code_key(mobile))
+        if not cached:
+            raise BusinessException(code=ResultCode.CAPTCHA_ERROR, msg="验证码已过期，请重新获取")
+        if cached != code:
+            raise BusinessException(code=ResultCode.CAPTCHA_ERROR, msg="验证码错误")
+        await redis.delete(_sms_code_key(mobile))
+
         result = await self.db.execute(
             select(SysUser).where(SysUser.mobile == mobile, SysUser.is_deleted == 0)
         )
@@ -47,9 +63,11 @@ class AuthService:
         return await self._build_token(user)
 
     async def send_sms_code(self, mobile: str) -> None:
-        """发送短信验证码（占位）。"""
-        # TODO: 接入真实短信服务
-        logger.info(f"Send SMS code to {mobile}")
+        """生成登录验证码写入 Redis；短信通道未接入时记录日志便于本地调试。"""
+        code = f"{secrets.randbelow(1000000):06d}"
+        redis = await get_redis()
+        await redis.set(_sms_code_key(mobile), code, ex=SMS_CODE_TTL)
+        logger.info(f"短信登录验证码：mobile={mobile}, code={code}（短信通道未接入，仅记录日志）")
 
     async def logout(self, token: str) -> None:
         """用户登出。"""
@@ -58,17 +76,19 @@ class AuthService:
         logger.info("User logged out")
 
     async def refresh_token(self, refresh_token: str) -> dict:
-        """刷新访问令牌。"""
+        """刷新访问令牌：按用户 ID 重新加载账号与角色，避免新令牌丢失权限。"""
         token_manager = await get_token_manager()
-        new_token = await token_manager.refresh_token(refresh_token)
-        if new_token is None:
+        user_id = await token_manager.get_refresh_user_id(refresh_token)
+        if user_id is None:
             raise BusinessException(code=ResultCode.TOKEN_REFRESH_FAIL, msg="刷新令牌无效或过期")
-        return {
-            "accessToken": new_token.accessToken,
-            "refreshToken": new_token.refreshToken,
-            "tokenType": new_token.tokenType,
-            "expiresIn": new_token.expiresIn,
-        }
+
+        result = await self.db.execute(
+            select(SysUser).where(SysUser.id == user_id, SysUser.is_deleted == 0)
+        )
+        user = result.scalar_one_or_none()
+        if user is None or user.status != 1:
+            raise BusinessException(code=ResultCode.TOKEN_REFRESH_FAIL, msg="刷新令牌无效或过期")
+        return await self._build_token(user)
 
     async def get_user_info(self, user_id: int) -> dict:
         """获取当前登录用户信息（角色+权限）。"""

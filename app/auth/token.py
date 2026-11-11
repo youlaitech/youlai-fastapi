@@ -31,8 +31,8 @@ class TokenManager(ABC):
         ...
 
     @abstractmethod
-    async def refresh_token(self, refresh_token: str) -> AuthenticationToken | None:
-        """刷新令牌。"""
+    async def get_refresh_user_id(self, refresh_token: str) -> int | None:
+        """校验刷新令牌并返回用户 ID（Redis 模式同时消费该令牌）。"""
         ...
 
     @abstractmethod
@@ -134,22 +134,20 @@ class JwtTokenManager(TokenManager):
     async def validate_token(self, token: str) -> bool:
         return await self.parse_token(token) is not None
 
-    async def refresh_token(self, refresh_token: str) -> AuthenticationToken | None:
+    async def get_refresh_user_id(self, refresh_token: str) -> int | None:
         try:
             claims = jwt.decode(refresh_token, self._secret, algorithms=["HS256"])
-            if claims.get("type") != "refresh":
-                return None
-            token_version = await self._get_token_version(claims.get("userId", 0))
-            if claims.get("tokenVersion") != token_version:
-                return None
-            user = SysUserDetails(
-                userId=claims["userId"],
-                username=claims.get("username", ""),
-                roles=set(claims.get("roles", [])),
-            )
-            return await self.generate_token(user)
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
             return None
+        if claims.get("type") != "refresh":
+            return None
+        user_id = claims.get("userId")
+        if user_id is None:
+            return None
+        token_version = await self._get_token_version(user_id)
+        if claims.get("tokenVersion") != token_version:
+            return None
+        return int(user_id)
 
     async def invalidate_token(self, token: str) -> None:
         # JWT 本身无法撤销，通过 token version 实现踢人
@@ -218,13 +216,12 @@ class RedisTokenManager(TokenManager):
         raw = await self._redis.get(f"token:access:{token}")
         return raw is not None
 
-    async def refresh_token(self, refresh_token: str) -> AuthenticationToken | None:
+    async def get_refresh_user_id(self, refresh_token: str) -> int | None:
         user_id = await self._redis.get(f"token:refresh:{refresh_token}")
         if user_id is None:
             return None
         await self._redis.delete(f"token:refresh:{refresh_token}")
-        user = SysUserDetails(userId=int(user_id))
-        return await self.generate_token(user)
+        return int(user_id)
 
     async def invalidate_token(self, token: str) -> None:
         await self._redis.delete(f"token:access:{token}")
