@@ -2,7 +2,7 @@
 
 {% if schema_import_lines %}{% for line in schema_import_lines %}[[ line ]]
 {% endfor %}
-{% endif %}from pydantic import BaseModel, Field
+{% endif %}from pydantic import AliasChoices, BaseModel, Field
 
 from app.serializers import BigId
 
@@ -10,26 +10,26 @@ from app.serializers import BigId
 class [[ entity_name ]]QueryParams(BaseModel):
     page_num: int = Field(default=1, ge=1, alias="pageNum")
     page_size: int = Field(default=10, ge=1, le=100, alias="pageSize")
-{% for c in columns %}{% if c.is_show_in_query %}    [[ c.field_name ]]: [[ c.query_py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]")
+{% for c in columns %}{% if c.is_show_in_query %}    [[ c.field_name ]]: [[ c.query_py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]", validation_alias=AliasChoices("[[ c.column_name ]]", "[[ c.field_name ]]"))
 {% endif %}{% endfor %}
     model_config = {"populate_by_name": True}
 
 
 class [[ entity_name ]]Create(BaseModel):
-{% for c in columns %}{% if c.is_show_in_form and not c.is_pk and not c.inherited_by_mixin %}{% if c.is_required %}    [[ c.field_name ]]: [[ c.py_type ]]{% if c.field_type == "str" %} = Field(..., min_length=1, alias="[[ c.field_name ]]"){% else %} = Field(..., alias="[[ c.field_name ]]"){% endif %}
-{% else %}    [[ c.field_name ]]: [[ c.py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]")
+{% for c in columns %}{% if c.is_show_in_form and not c.is_pk and not c.inherited_by_mixin %}{% if c.is_required %}    [[ c.field_name ]]: [[ c.py_type ]]{% if c.field_type == "str" %} = Field(..., min_length=1, alias="[[ c.field_name ]]", validation_alias=AliasChoices("[[ c.column_name ]]", "[[ c.field_name ]]")){% else %} = Field(..., alias="[[ c.field_name ]]", validation_alias=AliasChoices("[[ c.column_name ]]", "[[ c.field_name ]]")){% endif %}
+{% else %}    [[ c.field_name ]]: [[ c.py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]", validation_alias=AliasChoices("[[ c.column_name ]]", "[[ c.field_name ]]"))
 {% endif %}{% endif %}{% endfor %}
     model_config = {"populate_by_name": True}
 
 
 class [[ entity_name ]]Update(BaseModel):
-{% for c in columns %}{% if c.is_show_in_form and not c.is_pk and not c.inherited_by_mixin %}    [[ c.field_name ]]: [[ c.py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]")
+{% for c in columns %}{% if c.is_show_in_form and not c.is_pk and not c.inherited_by_mixin %}    [[ c.field_name ]]: [[ c.py_type ]] | None = Field(default=None, alias="[[ c.field_name ]]", validation_alias=AliasChoices("[[ c.column_name ]]", "[[ c.field_name ]]"))
 {% endif %}{% endfor %}
     model_config = {"populate_by_name": True}
 
 
 class [[ entity_name ]]VO(BaseModel):
     id: BigId | None = None
-{% for c in columns %}{% if not c.is_pk and c.column_name != "is_deleted" %}    [[ c.field_name ]]: [[ c.py_type ]]{% if c.is_nullable %} | None{% endif %} = Field(default={% if c.is_nullable %}None{% elif c.field_type == "str" %}""{% elif c.field_type == "int" %}0{% elif c.field_type == "bool" %}False{% else %}None{% endif %}, alias="[[ c.field_name ]]")
+{% for c in columns %}{% if not c.is_pk and c.column_name != "is_deleted" %}    [[ c.field_name ]]: [[ c.py_type ]]{% if c.is_nullable %} | None{% endif %} = Field(default={% if c.is_nullable %}None{% elif c.field_type == "str" %}""{% elif c.field_type == "int" %}0{% elif c.field_type == "bool" %}False{% else %}None{% endif %}, alias="[[ c.field_name ]]", validation_alias=AliasChoices("[[ c.column_name ]]", "[[ c.field_name ]]"))
 {% endif %}{% endfor %}
     model_config = {"populate_by_name": True, "from_attributes": True}

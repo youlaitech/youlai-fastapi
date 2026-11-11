@@ -5,11 +5,11 @@
 {% endif %}{% if sa_imports %}from sqlalchemy import [[ sa_imports | join(", ") ]]
 {% endif %}from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database import Base, BaseIdMixin, TimestampMixin, SoftDeleteMixin
+from app.database import Base, BaseIdMixin{% if has_timestamp %}, TimestampMixin{% endif %}{% if has_soft_delete %}, SoftDeleteMixin{% endif %}
 
 
-class [[ entity_name ]](Base, BaseIdMixin, TimestampMixin, SoftDeleteMixin):
+class [[ entity_name ]](Base, BaseIdMixin{% if has_timestamp %}, TimestampMixin{% endif %}{% if has_soft_delete %}, SoftDeleteMixin{% endif %}):
     __tablename__ = "[[ table_name ]]"
 
-{% for c in columns %}{% if not c.is_pk and not c.inherited_by_mixin %}    [[ c.field_name ]]: Mapped[{% if c.is_nullable %}[[ c.py_type ]] | None{% else %}[[ c.py_type ]]{% endif %}] = mapped_column([[ c.sa_column ]], comment="[[ c.field_comment ]]")
+{% for c in columns %}{% if not c.is_pk and not c.inherited_by_mixin %}    [[ c.orm_attr_name ]]: Mapped[{% if c.is_nullable %}[[ c.py_type ]] | None{% else %}[[ c.py_type ]]{% endif %}] = mapped_column([[ c.sa_column ]], comment="[[ c.field_comment ]]")
 {% endif %}{% endfor %}

@@ -1,6 +1,6 @@
 """[[ entity_name ]] 服务 — 由代码生成器生成。"""
 
-from sqlalchemy import func, select, update as sa_update
+from sqlalchemy import {% if has_soft_delete %}func, select, update as sa_update{% else %}delete as sa_delete, func, select{% endif %}
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import BusinessException
@@ -16,17 +16,17 @@ class [[ entity_name ]]Service:
 
     async def get_page(self, query: [[ entity_name ]]QueryParams) -> tuple[list["[[ entity_name ]]VO"], int]:
         conditions = [
-            [[ entity_name ]].is_deleted == 0,
-        ]
+{% if has_soft_delete %}            [[ entity_name ]].is_deleted == 0,
+{% endif %}        ]
 {% for c in columns %}{% if c.is_show_in_query %}{% if c.query_type_name == "BETWEEN" %}        if getattr(query, "[[ c.field_name ]]", None):
             start, end = query.[[ c.field_name ]][0], query.[[ c.field_name ]][-1]
-            conditions.append([[ entity_name ]].[[ c.field_name ]].between(start, end))
+            conditions.append([[ entity_name ]].[[ c.orm_attr_name ]].between(start, end))
 {% elif c.query_type_name == "IN" %}        if getattr(query, "[[ c.field_name ]]", None):
-            conditions.append([[ entity_name ]].[[ c.field_name ]].in_(query.[[ c.field_name ]]))
-{% elif c.form_type_name == "INPUT" %}        if getattr(query, "[[ c.field_name ]]", None):
-            conditions.append([[ entity_name ]].[[ c.field_name ]].ilike(f"%{getattr(query, '[[ c.field_name ]]')}%"))
+            conditions.append([[ entity_name ]].[[ c.orm_attr_name ]].in_(query.[[ c.field_name ]]))
+{% elif c.query_type_name == "LIKE" %}        if getattr(query, "[[ c.field_name ]]", None):
+            conditions.append([[ entity_name ]].[[ c.orm_attr_name ]].ilike(f"%{getattr(query, '[[ c.field_name ]]')}%"))
 {% else %}        if getattr(query, "[[ c.field_name ]]", None):
-            conditions.append([[ entity_name ]].[[ c.field_name ]] == getattr(query, "[[ c.field_name ]]"))
+            conditions.append([[ entity_name ]].[[ c.orm_attr_name ]] == getattr(query, "[[ c.field_name ]]"))
 {% endif %}{% endif %}{% endfor %}
         base = select([[ entity_name ]]).where(*conditions)
 
@@ -47,7 +47,7 @@ class [[ entity_name ]]Service:
     async def get_form_data(self, id: int) -> [[ entity_name ]]VO:
         model = (
             await self.db.execute(
-                select([[ entity_name ]]).where([[ entity_name ]].id == id, [[ entity_name ]].is_deleted == 0)
+                select([[ entity_name ]]).where([[ entity_name ]].id == id{% if has_soft_delete %}, [[ entity_name ]].is_deleted == 0{% endif %})
             )
         ).scalar_one_or_none()
         if not model:
@@ -56,7 +56,7 @@ class [[ entity_name ]]Service:
 
     async def create(self, form: [[ entity_name ]]Create) -> None:
         model = [[ entity_name ]](
-{% for c in columns %}{% if c.is_show_in_form and not c.is_pk and not c.inherited_by_mixin %}            [[ c.field_name ]]=form.[[ c.field_name ]],
+{% for c in columns %}{% if c.is_show_in_form and not c.is_pk and not c.inherited_by_mixin %}            [[ c.orm_attr_name ]]=form.[[ c.field_name ]],
 {% endif %}{% endfor %}        )
         self.db.add(model)
         await self.db.flush()
@@ -64,22 +64,23 @@ class [[ entity_name ]]Service:
     async def update(self, id: int, form: [[ entity_name ]]Update) -> None:
         model = (
             await self.db.execute(
-                select([[ entity_name ]]).where([[ entity_name ]].id == id, [[ entity_name ]].is_deleted == 0)
+                select([[ entity_name ]]).where([[ entity_name ]].id == id{% if has_soft_delete %}, [[ entity_name ]].is_deleted == 0{% endif %})
             )
         ).scalar_one_or_none()
         if not model:
             raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="[[ business_name ]]不存在")
 {% for c in columns %}{% if c.is_show_in_form and not c.is_pk and not c.inherited_by_mixin %}        if form.[[ c.field_name ]] is not None:
-            model.[[ c.field_name ]] = form.[[ c.field_name ]]
+            model.[[ c.orm_attr_name ]] = form.[[ c.field_name ]]
 {% endif %}{% endfor %}        await self.db.flush()
 
     async def delete(self, ids: str) -> int:
         id_list = [int(x) for x in ids.split(",") if x.strip()]
         if not id_list:
             raise BusinessException(code=ResultCode.PARAM_VALID_FAIL, msg="删除的 ID 不能为空")
-        stmt = (
+{% if has_soft_delete %}        stmt = (
             sa_update([[ entity_name ]])
             .where([[ entity_name ]].id.in_(id_list), [[ entity_name ]].is_deleted == 0)
             .values(is_deleted=1)
         )
-        return (await self.db.execute(stmt)).rowcount
+{% else %}        stmt = sa_delete([[ entity_name ]]).where([[ entity_name ]].id.in_(id_list))
+{% endif %}        return (await self.db.execute(stmt)).rowcount

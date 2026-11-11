@@ -226,9 +226,15 @@ def lower_first(s: str) -> str:
     return s[:1].lower() + s[1:] if s else ""
 
 
+def camel_case(s: str) -> str:
+    """snake_case / kebab-case / PascalCase → camelCase，如 create_time → createTime。"""
+    words = [w for w in s.replace("-", "_").split("_") if w]
+    return lower_first("".join(w[:1].upper() + w[1:] for w in words))
+
+
 def constant_case(s: str) -> str:
     """PascalCase / snake_case → SCREAMING_SNAKE_CASE，用于接口地址常量命名。"""
-    return kebab_case(s).replace("-", "_")
+    return kebab_case(s).replace("-", "_").upper()
 
 
 def trim_table_prefix(table_name: str, remove_prefix: str) -> str:
@@ -357,15 +363,16 @@ class CodegenService:
         sa = pg_to_sa(col["udt"])
 
         is_non_sys = col["name"] not in _MIXIN_COLUMNS
-        field_name = saved_col.field_name if saved_col else col["name"]
+        field_name = (saved_col.field_name if saved_col and saved_col.field_name
+                      else camel_case(col["name"]))
         field_type = (saved_col.field_type or py_type) if saved_col else py_type
 
-        # 默认表单/查询类型推断
-        if "status" in field_name:
+        # 默认表单类型按列名推断，field_name 已是驼峰（create_time → createTime）
+        if "status" in col["name"]:
             default_form = "SWITCH"
-        elif any(k in field_name for k in ("time", "date")):
+        elif any(k in col["name"] for k in ("time", "date")):
             default_form = "DATE_TIME"
-        elif any(k in field_name for k in ("remark", "desc", "content")):
+        elif any(k in col["name"] for k in ("remark", "desc", "content")):
             default_form = "TEXT_AREA"
         elif py_type in ("float", "int", "Decimal"):
             default_form = "INPUT_NUMBER"
@@ -391,6 +398,7 @@ class CodegenService:
             "column_name": col["name"],
             "inherited_by_mixin": col["name"] in _MIXIN_COLUMNS,
             "field_name": field_name,
+            "orm_attr_name": col["name"],
             "field_type": field_type,
             "field_comment": (saved_col.field_comment or col["comment"]) if saved_col else col["comment"],
             "ts_type": ts_type if not saved_col else py_to_ts(field_type),
@@ -418,6 +426,7 @@ class CodegenService:
                 code=ResultCode.OPERATE_DENIED,
                 msg=f"表 {table_name} 的主键为 {pk or '无'}，代码生成要求主键命名为 id",
             )
+        column_names = {c["name"] for c in raw_cols}
         entity_name = pascal_case(trim_table_prefix(table_name, _DEFAULT_REMOVE_TABLE_PREFIX))
         entity_lower = lower_first(entity_name)
         module_name = _DEFAULT_MODULE_NAME
@@ -425,6 +434,8 @@ class CodegenService:
         entity_upper_snake = constant_case(entity_name)
 
         ctx = {
+            "has_timestamp": {"create_time", "update_time"} <= column_names,
+            "has_soft_delete": "is_deleted" in column_names,
             "table_name": table_name,
             "entity_name": entity_name,
             "entity_lower": entity_lower,
@@ -457,6 +468,9 @@ class CodegenService:
 
         for col in raw_cols:
             meta = self._build_field_meta(col, saved_cols.get(col["name"]))
+            # 表只有 create_time 或 update_time 其中之一时不继承 TimestampMixin，该列需单独声明
+            if meta["column_name"] in ("create_time", "update_time") and not ctx["has_timestamp"]:
+                meta["inherited_by_mixin"] = False
             ctx["columns"].append(meta)
             if not meta["is_pk"] and not meta["inherited_by_mixin"]:
                 sa_name = meta["sa_column"].split("(")[0]
@@ -522,7 +536,7 @@ class CodegenService:
             entityName=gt.entity_name if gt else default_entity,
             author=gt.author if gt else "youlai-fastapi",
             parentMenuId=gt.parent_menu_id if gt else None,
-            pageType=gt.page_type if gt else "classic",
+            pageType=gt.page_type if gt else "crud",
             removeTablePrefix=gt.remove_table_prefix if gt else _DEFAULT_REMOVE_TABLE_PREFIX,
             fieldConfigs=field_configs,
         )
@@ -540,6 +554,17 @@ class CodegenService:
         return config
 
     async def save_gen_config(self, table_name: str, form: GenConfigForm) -> None:
+        raw_cols = await self._get_columns(table_name)
+        column_names = {c["name"] for c in raw_cols}
+        if not form.field_configs:
+            raise BusinessException(code=ResultCode.PARAM_VALID_FAIL, msg="字段配置不能为空")
+        for fc in form.field_configs:
+            if not fc.column_name or fc.column_name not in column_names:
+                raise BusinessException(
+                    code=ResultCode.PARAM_VALID_FAIL,
+                    msg=f"字段 {fc.column_name or ''} 在表 {table_name} 中不存在",
+                )
+
         gt = (await self.db.execute(select(GenTable).where(GenTable.table_name == table_name))).scalar_one_or_none()
         # 实体名兜底统一去表前缀，避免 SysArticle 这类把模块名重复进实体名、权限串变成 sys:sys-article
         default_entity = pascal_case(
@@ -555,7 +580,7 @@ class CodegenService:
             gt.author = form.author or "youlai-fastapi"
             gt.parent_menu_id = form.parent_menu_id
             gt.remove_table_prefix = form.remove_table_prefix
-            gt.page_type = form.page_type
+            gt.page_type = form.page_type or "crud"
             gt.update_time = datetime.now()
             await self.db.flush()
         else:
@@ -568,7 +593,7 @@ class CodegenService:
                 author=form.author or "youlai-fastapi",
                 parent_menu_id=form.parent_menu_id,
                 remove_table_prefix=form.remove_table_prefix,
-                page_type=form.page_type,
+                page_type=form.page_type or "crud",
             )
             self.db.add(gt)
             await self.db.flush()
@@ -582,7 +607,7 @@ class CodegenService:
                     table_id=gt.id,
                     column_name=fc.column_name,
                     column_type=fc.column_type,
-                    field_name=fc.field_name or "",
+                    field_name=fc.field_name or camel_case(fc.column_name),
                     field_type=fc.field_type,
                     field_sort=fc.field_sort or idx,
                     field_comment=fc.field_comment,
@@ -655,6 +680,7 @@ class CodegenService:
         view_tpl = "index.crud.vue.j2" if is_crud else "index.vue.j2"
 
         plan = [
+            ("backend/__init__.py.j2", "__init__.py", base_path, "backend"),
             ("backend/router.py.j2", "router.py", base_path, "backend"),
             ("backend/service.py.j2", "service.py", base_path, "backend"),
             ("backend/schemas.py.j2", "schemas.py", base_path, "backend"),

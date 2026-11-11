@@ -6,12 +6,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import require_perm
 from app.pagination import PageResult
 from app.response import Result
 from app.tool.codegen.schemas import AiFillConfigForm, GenConfigForm, PreviewQuery, TableQuery
 from app.tool.codegen.service import CodegenService
 
-router = APIRouter(prefix="/api/v1/codegen", tags=["代码生成"])
+# 代码生成会暴露全库表结构与生成代码，路由统一要求登录
+router = APIRouter(prefix="/api/v1/codegen", tags=["代码生成"], dependencies=[Depends(require_perm())])
 
 
 @router.get("/table", summary="获取数据表分页列表")
@@ -59,7 +61,7 @@ async def ai_fill_config(
 @router.get("/{table_name}/preview", summary="获取预览生成代码")
 async def preview_code(
     table_name: str,
-    pageType: str = Query(default="classic"),
+    pageType: str = Query(default="crud"),
     type: str = Query(default="ts"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -70,7 +72,7 @@ async def preview_code(
 @router.get("/{table_name}/download", summary="下载代码")
 async def download_code(
     table_name: str,
-    pageType: str = Query(default="classic"),
+    pageType: str = Query(default="crud"),
     type: str = Query(default="ts"),
     db: AsyncSession = Depends(get_db),
 ):
