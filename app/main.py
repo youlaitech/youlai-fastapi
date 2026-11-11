@@ -1,6 +1,7 @@
 """主入口 — FastAPI 应用工厂，挂载路由、中间件、异常处理器。"""
 
 from contextlib import asynccontextmanager
+import sys
 import uuid
 
 from fastapi import FastAPI, Request
@@ -30,6 +31,9 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """构建 FastAPI 实例，注册路由、中间件与异常处理器。"""
+    logger.remove()
+    logger.add(sys.stderr, level=settings.LOG_LEVEL)
+
     app = FastAPI(
         title="youlai-fastapi",
         description="youlai-fastapi 企业级权限管理系统后端",

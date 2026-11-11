@@ -59,7 +59,12 @@ class FormDefinitionCreate(BaseModel):
 
 
 class FormDefinitionUpdate(FormDefinitionCreate):
-    """表单定义修改入参（formKey 创建后不可改，传了也被忽略）。"""
+    """表单定义修改入参，字段均可选，未传字段保持原值。"""
+
+    formKey: str | None = Field(default=None, max_length=64)
+    formName: str | None = Field(default=None, max_length=100)
+    isPublic: int | None = None
+    category: str | None = None
 
 
 class FormMenuSave(BaseModel):

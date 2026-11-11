@@ -49,7 +49,7 @@
 
 - 🌐 **Multi-language ecosystem** — shares the API spec and database schema with other language versions
 
-- 🔌 **Real-time communication** — SSE push: online user count, dictionary sync, notification broadcast
+- 🔌 **Real-time communication** — WebSocket push: online user count, dictionary sync, notification broadcast
 
 
 
@@ -133,7 +133,7 @@
 
    # source .venv/bin/activate  # Linux/Mac
 
-   pip install fastapi[standard] uvicorn[standard] sqlalchemy[asyncio] asyncpg pydantic[email] pydantic-settings pyjwt[crypto] bcrypt python-multipart redis[hiredis] orjson loguru fastapi-pagination sse-starlette pillow openpyxl boto3 slowapi
+   pip install fastapi[standard] uvicorn[standard] sqlalchemy[asyncio] asyncpg pydantic[email] pydantic-settings pyjwt[crypto] bcrypt python-multipart redis[hiredis] orjson loguru fastapi-pagination pillow openpyxl boto3 slowapi
 
    ```
 
@@ -241,7 +241,7 @@ youlai-fastapi/
 
 │   ├── wxma/                # WeChat Mini Program
 
-│   └── sse/                 # SSE push
+│   └── realtime/            # WebSocket push
 
 ├── alembic/                 # database migration
 

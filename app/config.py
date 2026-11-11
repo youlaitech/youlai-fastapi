@@ -44,9 +44,9 @@ class Settings(BaseSettings):
     # 邮件
     MAIL_USERNAME: str = "your-email@example.com"
     MAIL_PASSWORD: str = "123456"
-    MAIL_FROM: str = "youlaitech@163.com"
+    MAIL_FROM: str = "noreply@example.com"
     MAIL_PORT: int = 587
-    MAIL_SERVER: str = "smtp.youlai.tech"
+    MAIL_SERVER: str = "smtp.example.com"
     MAIL_STARTTLS: bool = True
     MAIL_SSL_TLS: bool = False
 
@@ -62,8 +62,9 @@ class Settings(BaseSettings):
     FILE_MAX_SIZE_MB: int = 50
     FILE_ALLOWED_TYPES: str = "jpg,jpeg,png,gif"
 
-    # 调试
+    # 调试：true 时打印 SQL，CORS 放行所有来源
     DEBUG: bool = False
+    # 日志级别：DEBUG / INFO / WARNING / ERROR
     LOG_LEVEL: str = "INFO"
 
 

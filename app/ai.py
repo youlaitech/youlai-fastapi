@@ -23,7 +23,7 @@ def load_prompt(name: str) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-async def chat(system_prompt: str, user_prompt: str) -> str:
+async def chat(system_prompt: str, user_prompt: str, json_object: bool = True) -> str:
     """调用 AI 对话接口，返回去掉代码围栏的文本内容。"""
     if not settings.AI_ENABLED:
         raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="AI 功能未开启，请配置 AI_ENABLED 与 AI_API_KEY")
@@ -35,8 +35,9 @@ async def chat(system_prompt: str, user_prompt: str) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        "response_format": {"type": "json_object"},
     }
+    if json_object:
+        payload["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(
             url, json=payload, headers={"Authorization": f"Bearer {settings.AI_API_KEY}"}

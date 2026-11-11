@@ -74,7 +74,7 @@ class DictService:
         return DictVO.model_validate(obj, from_attributes=True)
 
     async def get_dict_codes_by_ids(self, ids: str) -> list[str]:
-        """删除前查出 dict_code 列表，供 SSE 广播通知。"""
+        """删除前查出 dict_code 列表，供实时广播通知。"""
         id_list = [int(x) for x in ids.split(",") if x.strip()]
         if not id_list:
             return []

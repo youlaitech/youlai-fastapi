@@ -7,7 +7,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_perm
 from app.response import Result
 from app.system.form.schemas import (
-    FormAiGenerateForm, FormDataSubmit, FormDefinitionCreate, FormMenuSave,
+    FormAiGenerateForm, FormDataSubmit, FormDefinitionCreate, FormDefinitionUpdate, FormMenuSave,
 )
 from app.system.form.service import FormService
 from app.system.log.constants import ActionTypeEnum, LogModuleEnum
@@ -86,7 +86,7 @@ async def get_form_detail(form_id: int, db: AsyncSession = Depends(get_db)):
 async def update_form(
     form_id: int,
     request: Request,
-    form: FormDefinitionCreate,
+    form: FormDefinitionUpdate,
     user: SysUserDetails = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

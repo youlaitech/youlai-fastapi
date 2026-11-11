@@ -13,7 +13,7 @@ from app.response import ResultCode
 from app.system.form.models import FormData, FormDefinition, FormSnapshot
 from app.system.form.schemas import (
     FormDataDetailVO, FormDataPageVO, FormDefinitionCreate, FormDefinitionForm,
-    FormDefinitionPageVO, FormMenuSave, FormMenuVO, FormRenderVO,
+    FormDefinitionPageVO, FormDefinitionUpdate, FormMenuSave, FormMenuVO, FormRenderVO,
 )
 from app.system.menu.models import SysMenu
 from app.system.menu.service import menu_tree_path_of
@@ -214,14 +214,15 @@ class FormService:
         await self.db.flush()
         return obj.id
 
-    async def update(self, form_id: int, form: FormDefinitionCreate, user_id: int | None) -> None:
+    async def update(self, form_id: int, form: FormDefinitionUpdate, user_id: int | None) -> None:
         obj = await self._find(form_id)
         form_key = (form.formKey or "").strip()
         if form_key and form_key != obj.form_key:
             raise BusinessException(code=ResultCode.OPERATE_DENIED, msg="表单标识创建后不可修改")
 
         obj.form_name = (form.formName or obj.form_name).strip()
-        obj.description = form.description
+        if form.description is not None:
+            obj.description = form.description
         if form.formJson is not None:
             obj.form_json = form.formJson
         if form.optionsJson is not None:
@@ -601,7 +602,9 @@ class FormService:
 
     # ── AI ────────────────────────────────────────────────────
 
-    async def ai_generate_rule(self, description: str) -> list:
-        """用 AI 把需求描述转成 form-create 规则，产出经结构校验后才返回。"""
-        content = await chat(load_prompt(SYSTEM_PROMPT_PATH), f"需求描述：\n{description}")
-        return self.validate_rule(content)
+    async def ai_generate_rule(self, description: str) -> str:
+        """用 AI 把需求描述转成 form-create 规则，校验后返回 JSON 字符串。"""
+        content = await chat(
+            load_prompt(SYSTEM_PROMPT_PATH), f"需求描述：\n{description}", json_object=False
+        )
+        return json.dumps(self.validate_rule(content), ensure_ascii=False)

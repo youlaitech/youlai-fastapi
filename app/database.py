@@ -20,14 +20,14 @@ class Base(DeclarativeBase):
 class TimestampMixin:
     """维护 create_time / update_time。
 
-    用 Python 层 default=func.now() 在插入时由应用显式写入时间戳，
+    用 Python 层 datetime.now 在插入/更新时写入时间戳，
     不依赖库表列的默认值（共享库部分表 create_time 为 NOT NULL 且无默认）。
     """
     create_time: Mapped[datetime | None] = mapped_column(
-        DateTime, default=func.now(), server_default=func.now(), comment="创建时间"
+        DateTime, default=datetime.now, server_default=func.now(), comment="创建时间"
     )
     update_time: Mapped[datetime | None] = mapped_column(
-        DateTime, default=func.now(), server_default=func.now(), onupdate=func.now(), comment="更新时间"
+        DateTime, default=datetime.now, server_default=func.now(), onupdate=datetime.now, comment="更新时间"
     )
 
 

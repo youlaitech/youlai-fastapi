@@ -255,12 +255,17 @@ class NoticeService:
             ))
         return PageResult(records=vo_list, total=total, pageNum=query.pageNum, pageSize=query.pageSize)
 
-    async def delete(self, notice_id: int) -> None:
-        obj = await self.db.get(SysNotice, notice_id)
-        if obj is None:
-            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="通知不存在")
-        obj.is_deleted = 1
-        await self.db.flush()
+    async def delete(self, ids: str) -> int:
+        """批量软删通知，返回实际删除条数。"""
+        id_list = [int(x) for x in str(ids or "").split(",") if x.strip().isdigit()]
+        if not id_list:
+            raise BusinessException(code=ResultCode.PARAM_VALID_FAIL, msg="删除的通知公告数据为空")
+        stmt = (
+            update(SysNotice)
+            .where(SysNotice.id.in_(id_list), SysNotice.is_deleted == 0)
+            .values(is_deleted=1)
+        )
+        return (await self.db.execute(stmt)).rowcount
 
 
 @router.get("", summary="通知分页", dependencies=[Depends(require_perm("sys:notice:list"))])
@@ -315,6 +320,15 @@ async def create_notice(
     return Result(data=await NoticeService(db).create(form, user.userId))
 
 
+@router.put("/read-all", summary="全部已读")
+async def read_all(
+    user: SysUserDetails = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await NoticeService(db).read_all(user.userId)
+    return Result(data=None)
+
+
 @router.put("/{notice_id}", summary="更新通知", dependencies=[Depends(require_perm("sys:notice:update"))])
 @operation_log(module=LogModuleEnum.NOTICE, action_type=ActionTypeEnum.UPDATE, title="修改通知")
 async def update_notice(
@@ -366,22 +380,13 @@ async def revoke_notice(
     return Result(data=None)
 
 
-@router.delete("/{notice_id}", summary="删除通知", dependencies=[Depends(require_perm("sys:notice:delete"))])
+@router.delete("/{ids}", summary="删除通知", dependencies=[Depends(require_perm("sys:notice:delete"))])
 @operation_log(module=LogModuleEnum.NOTICE, action_type=ActionTypeEnum.DELETE, title="删除通知")
-async def delete_notice(
+async def delete_notices(
     request: Request,
-    notice_id: int,
+    ids: str,
     user: SysUserDetails = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await NoticeService(db).delete(notice_id)
-    return Result(data=None)
-
-
-@router.put("/read-all", summary="全部已读")
-async def read_all(
-    user: SysUserDetails = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    await NoticeService(db).read_all(user.userId)
-    return Result(data=None)
+    count = await NoticeService(db).delete(ids)
+    return Result(data=count)
