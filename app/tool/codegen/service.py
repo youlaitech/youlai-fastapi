@@ -413,7 +413,15 @@ class CodegenService:
             "form_type_name": ft_name,
             "query_type_name": qt_name,
             "query_py_type": query_py_type,
-            "ts_query_type": "[string, string]" if qt_name == "BETWEEN" else ts_type,
+            "ts_query_type": (
+                "[string, string]"
+                if qt_name == "BETWEEN" and ft_name in ("DATE", "DATE_TIME")
+                else (
+                    f"[{ts_type} | null, {ts_type} | null]"
+                    if qt_name == "BETWEEN"
+                    else ("string[]" if qt_name == "IN" else ts_type)
+                )
+            ),
             "dict_type": (saved_col.dict_type or "") if saved_col else "",
             "max_length": saved_col.max_length if saved_col else None,
         }
