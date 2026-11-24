@@ -25,6 +25,13 @@ class UserService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def count(self) -> int:
+        """统计未删除的用户总数。"""
+        result = await self.db.execute(
+            select(func.count()).where(SysUser.is_deleted == 0)
+        )
+        return result.scalar() or 0
+
     async def get_page(self, query: UserQuery, user: SysUserDetails | None = None) -> PageResult:
         """分页查询用户列表。传入 user 则按角色 data_scope 过滤。"""
         conditions = [SysUser.is_deleted == 0]

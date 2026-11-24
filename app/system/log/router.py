@@ -7,8 +7,6 @@ from pydantic import BaseModel, Field
 
 from app.serializers import BigId
 
-from datetime import date, timedelta
-
 from app.database import get_db
 from app.pagination import PageResult
 from app.dependencies import require_perm
@@ -50,21 +48,6 @@ class LogVO(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class VisitTrendVO(BaseModel):
-    dates: list[str]
-    pvList: list[int]
-    uvList: list[int]
-
-
-class VisitOverviewVO(BaseModel):
-    todayUvCount: int = 0
-    totalUvCount: int = 0
-    uvGrowthRate: float = 0.0
-    todayPvCount: int = 0
-    totalPvCount: int = 0
-    pvGrowthRate: float = 0.0
-
-
 class LogService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -97,91 +80,6 @@ class LogService:
         vo_list = [LogVO.model_validate(r, from_attributes=True) for r in rows.scalars().all()]
         return PageResult(records=vo_list, total=total, pageNum=query.pageNum, pageSize=query.pageSize)
 
-    async def get_visit_trend(self, start_date: str, end_date: str) -> VisitTrendVO:
-        from datetime import datetime, timedelta
-        s = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e = datetime.strptime(end_date, "%Y-%m-%d").date()
-        dates = []
-        cur = s
-        while cur <= e:
-            dates.append(cur.isoformat())
-            cur += timedelta(days=1)
-
-        start_dt = f"{dates[0]} 00:00:00"
-        end_dt = f"{dates[-1]} 23:59:59"
-
-        # 按日期统计 PV
-        pv_rows = await self.db.execute(
-            select(func.date(SysLog.create_time), func.count())
-            .where(SysLog.create_time >= start_dt, SysLog.create_time <= end_dt)
-            .group_by(func.date(SysLog.create_time))
-        )
-        pv_map = {str(d): c for d, c in pv_rows}
-
-        # 按日期统计 UV（按 IP 去重）
-        ip_rows = await self.db.execute(
-            select(func.date(SysLog.create_time), func.count(func.distinct(SysLog.ip)))
-            .where(SysLog.create_time >= start_dt, SysLog.create_time <= end_dt)
-            .group_by(func.date(SysLog.create_time))
-        )
-        uv_map = {str(d): c for d, c in ip_rows}
-
-        return VisitTrendVO(
-            dates=dates,
-            pvList=[pv_map.get(d, 0) for d in dates],
-            uvList=[uv_map.get(d, 0) for d in dates],
-        )
-
-    async def get_visit_overview(self) -> VisitOverviewVO:
-        from datetime import date
-        today = date.today().isoformat()
-        yesterday = (date.today() - timedelta(days=1)).isoformat()
-
-        # 今日 UV
-        r = await self.db.execute(
-            select(func.count(func.distinct(SysLog.ip)))
-            .where(func.date(SysLog.create_time) == today)
-        )
-        today_uv = r.scalar() or 0
-
-        # 昨日 UV
-        r = await self.db.execute(
-            select(func.count(func.distinct(SysLog.ip)))
-            .where(func.date(SysLog.create_time) == yesterday)
-        )
-        yest_uv = r.scalar() or 0
-
-        # 累计 UV
-        r = await self.db.execute(select(func.count(func.distinct(SysLog.ip))))
-        total_uv = r.scalar() or 0
-
-        # 今日 PV
-        r = await self.db.execute(
-            select(func.count()).where(func.date(SysLog.create_time) == today)
-        )
-        today_pv = r.scalar() or 0
-
-        # 昨日 PV
-        r = await self.db.execute(
-            select(func.count()).where(func.date(SysLog.create_time) == yesterday)
-        )
-        yest_pv = r.scalar() or 0
-
-        # 累计 PV
-        r = await self.db.execute(select(func.count()))
-        total_pv = r.scalar() or 0
-
-        uv_rate = round((today_uv - yest_uv) / yest_uv * 100, 2) if yest_uv else 0.0
-        pv_rate = round((today_pv - yest_pv) / yest_pv * 100, 2) if yest_pv else 0.0
-
-        return VisitOverviewVO(
-            todayUvCount=today_uv,
-            totalUvCount=total_uv,
-            uvGrowthRate=uv_rate,
-            todayPvCount=today_pv,
-            totalPvCount=total_pv,
-            pvGrowthRate=pv_rate,
-        )
 
 
 @router.get("", summary="日志分页", dependencies=[Depends(require_perm("sys:log:list"))])
@@ -196,17 +94,3 @@ async def get_logs(
 ):
     q = LogQuery(pageNum=pageNum, pageSize=pageSize, module=module, actionType=actionType, status=status, keywords=keywords)
     return Result(data=await LogService(db).get_page(q))
-
-
-@router.get("/analytics/trend", summary="访问趋势统计")
-async def get_visit_trend(
-    startDate: str = Query(..., description="开始时间 yyyy-MM-dd"),
-    endDate: str = Query(..., description="结束时间 yyyy-MM-dd"),
-    db: AsyncSession = Depends(get_db),
-):
-    return Result(data=await LogService(db).get_visit_trend(startDate, endDate))
-
-
-@router.get("/analytics/overview", summary="访问统计概览")
-async def get_visit_overview(db: AsyncSession = Depends(get_db)):
-    return Result(data=await LogService(db).get_visit_overview())
