@@ -157,6 +157,20 @@ class RoleService:
         id_list = [int(x) for x in ids.split(",") if x.strip()]
         if not id_list:
             raise BusinessException(code=ResultCode.PARAM_VALID_FAIL, msg="请选择要删除的角色")
+
+        assigned = await self.db.execute(
+            text("SELECT DISTINCT role_id FROM sys_user_role WHERE role_id = ANY(:ids)"),
+            {"ids": id_list},
+        )
+        assigned_ids = {row.role_id for row in assigned}
+        if assigned_ids:
+            roles = await self.db.execute(select(SysRole.name).where(SysRole.id.in_(assigned_ids)))
+            names = [row.name for row in roles]
+            raise BusinessException(
+                code=ResultCode.PARAM_VALID_FAIL,
+                msg=f"角色【{', '.join(names)}】已分配用户，请先解除关联后删除",
+            )
+
         await self.db.execute(text("UPDATE sys_role SET is_deleted = 1 WHERE id = ANY(:ids)"), {"ids": id_list})
         logger.info(f"Roles deleted: {id_list}")
         return len(id_list)
