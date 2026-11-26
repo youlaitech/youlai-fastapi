@@ -62,7 +62,7 @@ class NoticeVO(BaseModel):
 
 
 class NoticeDetailVO(NoticeVO):
-    pass
+    publisherName: str | None = None
 
 
 class UserNoticeVO(BaseModel):
@@ -114,6 +114,18 @@ class NoticeService:
                 .values(is_read=1, read_time=datetime.now())
             )
         return NoticeVO.model_validate(obj, from_attributes=True)
+
+    async def get_preview(self, notice_id: int) -> NoticeDetailVO:
+        """管理端预览通知，不修改阅读状态。"""
+        stmt = select(SysNotice).where(SysNotice.id == notice_id, SysNotice.is_deleted == 0)
+        notice = (await self.db.execute(stmt)).scalar_one_or_none()
+        if notice is None:
+            raise BusinessException(code=ResultCode.DATA_NOT_FOUND, msg="通知不存在")
+        detail = NoticeDetailVO.model_validate(notice, from_attributes=True)
+        if notice.publisher_id is not None:
+            publisher = await self.db.get(SysUser, notice.publisher_id)
+            detail.publisherName = (publisher.nickname or publisher.username) if publisher else None
+        return detail
 
     async def create(self, form: NoticeForm, create_by: int) -> NoticeVO:
         target_ids = form.targetUserIds
@@ -298,6 +310,14 @@ async def get_notice(
     db: AsyncSession = Depends(get_db),
 ):
     return Result(data=await NoticeService(db).get_by_id(notice_id, user.userId))
+
+
+@router.get("/{notice_id}/preview", summary="管理端预览通知", dependencies=[Depends(require_perm("sys:notice:list"))])
+async def get_notice_preview(
+    notice_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    return Result(data=await NoticeService(db).get_preview(notice_id))
 
 
 @router.get("/{notice_id}/detail", summary="阅读获取通知详情")
