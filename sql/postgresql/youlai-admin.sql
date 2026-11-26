@@ -661,7 +661,7 @@ COMMENT ON COLUMN sys_config.update_time IS '更新时间';
 COMMENT ON COLUMN sys_config.update_by IS '更新人ID';
 COMMENT ON COLUMN sys_config.is_deleted IS '逻辑删除标识(0-未删除 1-已删除)';
 
-INSERT INTO sys_config VALUES (1, '系统限流QPS', 'IP_QPS_THRESHOLD_LIMIT', '10', '单个IP请求的最大每秒查询数（QPS）阈值Key', now(), 1, NULL, NULL, 0);
+INSERT INTO sys_config VALUES (1, '用户管理-账号初始密码', 'sys.user.initPassword', '123456', '新增用户、导入用户时的默认密码', now(), 1, NULL, NULL, 0);
 
 -- ----------------------------
 -- 通知公告表
